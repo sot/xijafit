@@ -146,7 +146,7 @@ class ParamSelect(object):
 
 
 class XijaFit(object):
-    def __init__(self, filename, days=180, stop=None, set_data_exprs=None,
+    def __init__(self, filename, days=180, stop=None, start=None, set_data_exprs=None,
                  inherit_from=None, keep_epoch=False, quiet=False, name=None):
         """Initialize XijaFit class.
 
@@ -178,9 +178,16 @@ class XijaFit(object):
             self.model_spec['name'] = name
 
         # Set initial times.
-        if stop:
+        if stop and not start:
             self.start = DateTime(DateTime(stop).secs - days * 86400).date[:8]
             self.stop = stop
+        elif start and not stop:
+            self.start = start
+            self.stop = DateTime(DateTime(stop).secs + days * 86400).date[:8]
+        elif start and stop:
+            self.start = start
+            self.stop = stop
+            self.days = np.floor((DateTime(stop).secs - DateTime(start).secs) / (3600. * 24.))
         else:
             self.start = self.model_spec['datestart']
             self.stop = self.model_spec['datestop']
@@ -228,10 +235,10 @@ class XijaFit(object):
             self.stop = DateTime(stop).date
         elif stop is None:
             self.start = DateTime(start).date
-            self.stop = DateTime(DateTime(start).secs + days * 24 * 3600).date[:8]
+            self.stop = DateTime(DateTime(start).secs + days * 24 * 3600.).date[:8]
         else:
-            self.start = DateTime(DateTime(stop).secs - days * 24 * 3600).date[:8]
-            self.stop = DateTime(start).date
+            self.start = DateTime(DateTime(start).secs - days * 24 * 3600.).date[:8]
+            self.stop = DateTime(stop).date
 
         self.model = xija.ThermalModel(self.model_spec['name'], self.start, self.stop, model_spec=self.model.model_spec)
 
