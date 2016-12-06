@@ -5,16 +5,16 @@ import re
 import json
 import logging
 import numpy as np
-from ipywidgets import widgets
-import traitlets
-from IPython.display import display
+import matplotlib.pyplot as plt
+from time import sleep
 
 import sherpa.ui as ui
 from Chandra.Time import DateTime
-
 import Chandra.taco
 import xija
 import xija.clogging as clogging  # get rid of this or something
+
+from plot_cxctime_custom import *
 
 
 fit_logger = clogging.config_logger('fit', level=clogging.INFO,
@@ -75,79 +75,9 @@ class CalcStat(object):
         return fit_stat, np.ones(1)
 
 
-class ParamSelect(object):
-    """Class for creating Jupyter based GUI for manually tweaking parameters.
-
-    This is not currently 100% functional. Parameter values don't always set to their new values, and modifying ranges
-    can have unexpected effects on values (e.g. resetting them to original values). The option to interactively view the
-    impact a modified parameter has on the model should also be included.
-
-    """
-    def __init__(self, minbound, maxbound, initialvalue, updateparam):
-        self.updateparam = updateparam
-        #         self.label = Text(value='Parameter', visible=True, padding='5px', width='auto')
-        self.label = widgets.HTML(value=updateparam['full_name'], padding='5px')
-        self.slider = widgets.FloatSlider(value=initialvalue,
-                                          min=minbound,
-                                          max=maxbound,
-                                          step=0.001,
-                                          description='',
-                                          orientation='horizontal',
-                                          readout=False,
-                                          padding='5px')
-
-        self.mintext = widgets.BoundedFloatText(value=minbound,
-                                                min=-1e6,
-                                                max=maxbound,
-                                                description=' ',
-                                                readout_format='.3f',
-                                                padding='5px')
-
-        self.maxtext = widgets.BoundedFloatText(value=maxbound,
-                                                min=minbound,
-                                                max=+1e6,
-                                                description=' ',
-                                                readout_format='.3f',
-                                                padding='5px')
-
-        self.valtext = widgets.BoundedFloatText(value=self.slider.value,
-                                                min=self.slider.min,
-                                                max=self.slider.max,
-                                                description=' ',
-                                                readout_format='.3f',
-                                                padding='5px')
-        self.valtext.observe(self.onvalchange, names='value')
-
-        self.frozen = widgets.Checkbox(description=' ', value=True, visible=True, padding='5px', height=20, width=20)
-        self.frozen.observe(self.onfrozenchange, names='value')
-
-        self.lmin = traitlets.dlink((self.mintext, 'value'), (self.slider, 'min'))
-        self.lmax = traitlets.dlink((self.maxtext, 'value'), (self.slider, 'max'))
-
-        self.vlmin = traitlets.dlink((self.mintext, 'value'), (self.valtext, 'min'))
-        self.vlmax = traitlets.dlink((self.maxtext, 'value'), (self.valtext, 'max'))
-
-        self.lval = traitlets.link((self.slider, 'value'), (self.valtext, 'value'))
-
-        self.page = widgets.HBox(children=[self.label, self.valtext, self.mintext, self.slider, self.maxtext,
-                                           self.frozen])
-
-        self.slider.msg_throttle = 0
-
-    def onvalchange(self, p):
-        #         print ("parameter1: {}".format(p))
-        self.updateparam['val'] = self.valtext.value
-        print (self.updateparam)
-
-    def onfrozenchange(self, p):
-        #         print ("parameter1: {}".format(p))
-        self.updateparam['frozen'] = self.frozen.value
-        print (self.updateparam)
-
-
 class XijaFit(object):
-    def __init__(self, filename, days=180, stop=None, start=None, set_data_exprs=None,
-                 inherit_from=None, keep_epoch=False, quiet=False, name=None):
+    def __init__(self, modelobject, days=180, stop=None, start=None, set_data_exprs=None,
+                 inherit_from=None, keep_epoch=False, quiet=False, name=None, snapshotfile=None):
         """Initialize XijaFit class.
 
         :param filename: Full path of file containing parameters to import
@@ -157,6 +87,7 @@ class XijaFit(object):
         :param inherit_from: Full path of file containing parameters to inherit
         :param keep_epoch: Maintain epoch in SolarHeat models (default=recenter on fit interval)
         :param quiet: Suppress screen output
+        ;param snapshotfile: json file containing fit snapshots
         """
 
         # Enable fully-randomized evaluation of ACIS-FP model which is desirable
@@ -171,12 +102,6 @@ class XijaFit(object):
                 for h in logger.handlers:
                     logger.removeHandler(h)
 
-        # Read in model spec.
-        self.model_spec = json.load(open(filename, 'r'))
-
-        if name:
-            self.model_spec['name'] = name
-
         # Set initial times.
         if stop and not start:
             self.start = DateTime(DateTime(stop).secs - days * 86400).date[:8]
@@ -189,11 +114,16 @@ class XijaFit(object):
             self.stop = stop
             self.days = np.floor((DateTime(stop).secs - DateTime(start).secs) / (3600. * 24.))
         else:
-            self.start = self.model_spec['datestart']
-            self.stop = self.model_spec['datestop']
+            self.start = DateTime(DateTime().secs - 3600*24*192).date
+            self.stop = DateTime(DateTime().secs - 3600*24*10).date
 
         # Initialize Xija model object.
-        self.model = xija.XijaModel(self.model_spec['name'], self.start, self.stop, model_spec=self.model_spec)
+        self.model = xija.XijaModel(name or 'xijamodel', self.start, self.stop, model_spec=modelobject)
+
+        self.model_spec = self.model.model_spec
+
+        if name:
+            self.model_spec['name'] = name
 
         self.set_data_exprs = set_data_exprs
         if self.set_data_exprs:
@@ -211,7 +141,10 @@ class XijaFit(object):
         if not self.keep_epoch:
             self.set_epoch()
 
-        self.snapshots = []
+        if snapshotfile:
+            self.snapshots = json.load(open(snapshotfile, 'r'))
+        else:
+            self.snapshots = []
         self.save_snapshot()
 
     def update_fit_times(self, start=None, stop=None, days=180):
@@ -376,8 +309,8 @@ class XijaFit(object):
     def thaw_all(self):
         """Thaw all parameters.
         """
-        p1 = 'solarheat__[A-Za-z0-9]+__bias'
-        p2 = 'solarheat__[A-Za-z0-9]+__tau'
+        p1 = 'solarheat__[A-Za-z0-9_]+__bias'
+        p2 = 'solarheat__[A-Za-z0-9_]+__tau'
         for par in self.model.pars:
             if re.match(p1, par.full_name):
                 pass
@@ -434,7 +367,7 @@ class XijaFit(object):
         """Center parameter range around current value.
 
         :param param: Parameter
-        :param value: parameter value
+        :param expansion: ratio of min-max range, used to expand or contract range
         """
         found = False
         for par in self.model.pars:
@@ -446,11 +379,32 @@ class XijaFit(object):
         if not found:
             print('Parameter: {} not found'.format(param))
 
+    def set_range(self, param, minval, maxval):
+        """Center parameter range around current value.
+
+        :param param: Parameter
+        :param minval: minimum range value
+        :param maxval: maximum range value
+        """
+        found = False
+        for par in self.model.pars:
+            if param in par.full_name:
+                par['min'] = minval
+                par['max'] = maxval
+                if par['val'] > par['max']:
+                    par['val'] = maxval
+                elif par['val'] < par['min']:
+                    par['val'] = minval
+                found = True
+        if not found:
+            print('Parameter: {} not found'.format(param))
+
     def zero_solarheat_p(self):
         """Set all short term solarheat "P" parameters zero.
         """
-        p1 = 'solarheat__[A-Za-z0-9]+__P_\d+'
-        p2 = 'solarheat__[A-Za-z0-9]+__bias'
+        p1 = 'solarheat__[A-Za-z0-9_]+__P_\d+'
+        self.bias = 'solarheat__[A-Za-z0-9_]+__bias'
+        p2 = self.bias
         found = False
         for par in self.model.pars:
             if (re.match(p1, par.full_name)) or (re.match(p2, par.full_name)):
@@ -464,7 +418,7 @@ class XijaFit(object):
     def zero_solarheat_dp(self):
         """Set all long term solarheat "dP" parameters zero.
         """
-        p = 'solarheat__[A-Za-z0-9]+__dP_\d+'
+        p = 'solarheat__[A-Za-z0-9_]+__dP_\d+'
         found = False
         for par in self.model.pars:
             if re.match(p, par.full_name):
@@ -492,7 +446,7 @@ class XijaFit(object):
     def freeze_solarheat_p(self):
         """Freeze all solarheat "P" parameters.
         """
-        p = 'solarheat__[A-Za-z0-9]+__P_\d+'
+        p = 'solarheat__[A-Za-z0-9_]+__P_\d+'
         found = False
         for par in self.model.pars:
             if re.match(p, par.full_name):
@@ -504,7 +458,7 @@ class XijaFit(object):
     def freeze_solarheat_dp(self):
         """Freeze all solarheat "dP" parameters.
         """
-        p = 'solarheat__[A-Za-z0-9]+__dP_\d+'
+        p = 'solarheat__[A-Za-z0-9_]+__dP_\d+'
         found = False
         for par in self.model.pars:
             if re.match(p, par.full_name):
@@ -528,7 +482,7 @@ class XijaFit(object):
     def thaw_solarheat_p(self):
         """Thaw all solarheat "P" parameters.
         """
-        p = 'solarheat__[A-Za-z0-9]+__P_\d+'
+        p = 'solarheat__[A-Za-z0-9_]+__P_\d+'
         found = False
         for par in self.model.pars:
             if re.match(p, par.full_name):
@@ -540,7 +494,7 @@ class XijaFit(object):
     def thaw_solarheat_dp(self):
         """Thaw all solarheat "dP" parameters.
         """
-        p = 'solarheat__[A-Za-z0-9]+__dP_\d+'
+        p = 'solarheat__[A-Za-z0-9_]+__dP_\d+'
         found = False
         for par in self.model.pars:
             if re.match(p, par.full_name):
@@ -582,21 +536,161 @@ class XijaFit(object):
             json.dump(self.snapshots, outfile, indent=4, sort_keys=True)
 
 
-def create_param_gui(model):
-    """Create Jupyter based GUI for tweaking model parameters manually.
+def load_parameters_from_snapshot(model, snapshot):
+    """Load parameters from a previous model.
 
-    :param model: Xija model
+    :param model: xija model object
+    :param snapshot: previous model fit snapshot
+
     """
-    minlabel = "               Min".replace('', '&nbsp', )
-    maxlabel = "                                                           Max".replace('', '&nbsp', )
-    vallabel = "                       Value".replace('', '&nbsp', )
-    label = widgets.HTML(value=vallabel + minlabel + maxlabel)
+    def setval(pars, param, value):
+        for par in pars:
+            if param in par.full_name:
+                par['val'] = value
+                if value > par['max']:
+                    par['max'] = value
+                elif value < par['min']:
+                    par['min'] = value
 
-    params = []
-    for p in model.model.pars:
-        minval = p['min']
-        maxval = p['max']
-        currentval = p['val']
-        params.append(ParamSelect(minval, maxval, currentval, p))
+    for p in snapshot.keys():
+        if p in model.parnames:
+            setval(model.pars, p, snapshot[p])
 
-    display(label, *[p.page for p in params])
+    return model.model_spec
+
+
+try:
+    from ipywidgets import widgets
+    import traitlets
+    from IPython.display import display
+    import dashboard as dash
+
+    class XijaParamGui(object):
+        """Class for creating Jupyter based GUI for manually tweaking parameters.
+
+        This is not currently 100% functional. Parameter values don't always set to their new values, and modifying ranges
+        can have unexpected effects on values (e.g. resetting them to original values). The option to interactively view the
+        impact a modified parameter has on the model should also be included.
+
+        """
+        def __init__(self, model, msid, caution_high=None, planning_limit=None):
+
+            self.model = model
+            self.msid = msid
+            self.caution_high = caution_high
+            self.planning_limit = planning_limit
+
+            self.fig = plt.figure(figsize=(15, 8))
+            self.ax = self.fig.add_axes(rect=(0.05, 0.1, 0.8, 0.85))
+
+            self.plothelper()
+
+            minlabel = "               Min".replace('', '&nbsp', )
+            maxlabel = "                                                           Max".replace('', '&nbsp', )
+            vallabel = "                       Value".replace('', '&nbsp', )
+            self.label = widgets.HTML(value=vallabel + minlabel + maxlabel)
+
+            params = []
+            for p in self.model.model.pars:
+                params.append(self.param_object(p))
+
+            display(self.label, *params)
+
+        def param_object(self, updateparam):
+
+            def onvalchange(p):
+                # print ("parameter1: {}".format(p))
+                updateparam['val'] = valtext.value
+                sleep(1)
+                self.plothelper()
+                # print (self.updateparam)
+
+            def onmaxchange(p):
+                sleep(1)
+                updateparam['max'] = maxtext.value
+
+            def onminchange(p):
+                sleep(1)
+                updateparam['min'] = mintext.value
+
+            def onfrozenchange(p):
+                # print ("parameter1: {}".format(p))
+                updateparam['frozen'] = frozen.value
+                # print (self.updateparam)
+
+            minbound = updateparam['min']
+            maxbound = updateparam['max']
+            initialvalue = updateparam['val']
+
+            label = widgets.HTML(value=updateparam['full_name'], padding='5px')
+            slider = widgets.FloatSlider(value=initialvalue,
+                                         min=minbound,
+                                         max=maxbound,
+                                         step=0.001,
+                                         description='',
+                                         orientation='horizontal',
+                                         readout=False,
+                                         padding='5px')
+            slider.msg_throttle = 0
+
+            mintext = widgets.BoundedFloatText(value=minbound,
+                                               min=-1e20,
+                                               max=maxbound,
+                                               description=' ',
+                                               readout_format='.3f',
+                                               padding='5px')
+            mintext.observe(onminchange, names='value')
+
+            maxtext = widgets.BoundedFloatText(value=maxbound,
+                                               min=minbound,
+                                               max=+1e20,
+                                               description=' ',
+                                               readout_format='.3f',
+                                               padding='5px')
+            maxtext.observe(onmaxchange, names='value')
+
+            valtext = widgets.BoundedFloatText(value=slider.value,
+                                               min=slider.min,
+                                               max=slider.max,
+                                               description=' ',
+                                               readout_format='.3f',
+                                               padding='5px')
+            valtext.observe(onvalchange, names='value')
+
+            frozen = widgets.Checkbox(description=' ', value=updateparam['frozen'], visible=True, padding='5px', height=20,
+                                      width=20)
+            frozen.observe(onfrozenchange, names='value')
+
+            lmin = traitlets.dlink((mintext, 'value'), (slider, 'min'))
+            lmax = traitlets.dlink((maxtext, 'value'), (slider, 'max'))
+
+            vlmin = traitlets.dlink((mintext, 'value'), (valtext, 'min'))
+            vlmax = traitlets.dlink((maxtext, 'value'), (valtext, 'max'))
+
+            lval = traitlets.link((slider, 'value'), (valtext, 'value'))
+
+            return widgets.HBox(children=[label, valtext, mintext, slider, maxtext, frozen])
+
+
+        def plothelper(self):
+            self.model.model.calc()
+            data = self.model.model.get_comp(self.msid)
+            self.ax = plt.gca()
+            self.ax.cla()
+            _ = plot_cxctime(data.times, data.mvals * 9 / 5. + 32., color='r', fig=self.fig, ax=self.ax)
+            _ = plot_cxctime(data.times, data.dvals * 9 / 5. + 32., color='b', fig=self.fig, ax=self.ax)
+            _[-1].grid(True)
+
+        # def plotdash(self):
+        #     msiddata = self.model.model.get_comp(self.msid)
+        #     prediction = msiddata.mvals * 9. / 5. + 32.
+        #     telem = msiddata.dvals * 9. / 5. + 32.
+        #     times = msiddata.times
+        #     modellimits = {'units': 'F', 'caution_high': self.caution_high, 'planning_limit': self.planning_limit}
+        #     self.fig.clf()
+        #     dash.dashboard(prediction, telem, times, modellimits, modelname=self.msid, msid=self.msid, fig=self.fig)
+
+
+except ImportError:
+    print('Jupyter interface not available')
+    pass
