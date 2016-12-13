@@ -14,7 +14,10 @@ import Chandra.taco
 import xija
 import xija.clogging as clogging  # get rid of this or something
 
-from plot_cxctime_custom import *
+try:
+    import plot_cxctime_custom as plot_cxctime
+except ImportError:
+    from Ska.Matplotlib import plot_cxctime
 
 
 fit_logger = clogging.config_logger('fit', level=clogging.INFO,
