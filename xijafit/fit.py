@@ -3,7 +3,6 @@
 import ast
 import re
 import json
-import logging
 import numpy as np
 import matplotlib.pyplot as plt
 from time import sleep
@@ -12,16 +11,13 @@ import sherpa.ui as ui
 from Chandra.Time import DateTime
 import Chandra.taco
 import xija
-import xija.clogging as clogging  # get rid of this or something
+import StringIO
+import logging
 
 try:
     import plot_cxctime_custom as plot_cxctime
 except ImportError:
     from Ska.Matplotlib import plot_cxctime
-
-
-fit_logger = clogging.config_logger('fit', level=clogging.INFO,
-                                    format='[%(levelname)s] (%(processName)-10s) %(message)s')
 
 
 # Default configurations for fit methods
@@ -32,29 +28,31 @@ sherpa_configs = dict(
 
 
 class CalcModel(object):
-    def __init__(self, model):
+    def __init__(self, model, logger):
         self.model = model
+        self.logger = logger
 
     def __call__(self, parvals, x):
         """This is the Sherpa calc_model function, but in this case calc_model does not
         actually calculate anything but instead just stores the desired parameters.  This
         allows for multiprocessing where only the fit statistic gets passed between nodes.
         """
-        fit_logger.info('Calculating params:')
+        self.logger.info('Calculating params:')
         for parname, parval, newparval in zip(self.model.parnames, self.model.parvals, parvals):
             if parval != newparval:
-                fit_logger.info('  {0}: {1}'.format(parname, newparval))
+                self.logger.info('  {0}: {1}'.format(parname, newparval))
         self.model.parvals = parvals
 
         return np.ones_like(x)
 
 
 class CalcStat(object):
-    def __init__(self, model):
+    def __init__(self, model, logger):
         self.model = model
         self.cache_fit_stat = {}
         self.min_fit_stat = None
         self.min_par_vals = self.model.parvals
+        self.logger = logger
 
     def __call__(self, _data, _model, staterror=None, syserror=None, weight=None):
         """Calculate fit statistic for the xija model.  The args _data and _model
@@ -64,11 +62,11 @@ class CalcStat(object):
         parvals_key = tuple('%.4e' % x for x in self.model.parvals)
         try:
             fit_stat = self.cache_fit_stat[parvals_key]
-            fit_logger.info('nmass_model: Cache hit %s' % str(parvals_key))
+            self.logger.info('nmass_model: Cache hit %s' % str(parvals_key))
         except KeyError:
             fit_stat = self.model.calc_stat()
 
-        fit_logger.info('Fit statistic: %.4f' % fit_stat)
+            self.logger.info('Fit statistic: %.4f' % fit_stat)
         self.cache_fit_stat[parvals_key] = fit_stat
 
         if self.min_fit_stat is None or fit_stat < self.min_fit_stat:
@@ -93,17 +91,29 @@ class XijaFit(object):
         ;param snapshotfile: json file containing fit snapshots
         """
 
+        self.fit_logger = logging.getLogger('fit')
+        self.fit_logger.setLevel(logging.INFO)
+
+        self.sherpa_logger = logging.getLogger('sherpa')
+        self.sherpa_logger.setLevel(logging.INFO)
+
+        self.log_capture_string = StringIO.StringIO()
+        ch = logging.StreamHandler(self.log_capture_string)
+        ch.setLevel(logging.INFO)
+        formatter = logging.Formatter('[%(levelname)s] (%(processName)-10s) %(message)s')
+        ch.setFormatter(formatter)
+        self.fit_logger.addHandler(ch)
+
+        self.sherpa_log_capture_string = StringIO.StringIO()
+        sch = logging.StreamHandler(self.sherpa_log_capture_string)
+        sch.setLevel(logging.INFO)
+        sformatter = logging.Formatter('[%(levelname)s] (%(processName)-10s) %(message)s')
+        sch.setFormatter(sformatter)
+        self.sherpa_logger.addHandler(sch)
+
         # Enable fully-randomized evaluation of ACIS-FP model which is desirable
         # for fitting.
         Chandra.taco.taco.set_random_salt(None)
-
-        # Define loggers.
-        sherpa_logger = logging.getLogger("sherpa")
-        loggers = (fit_logger, sherpa_logger)
-        if quiet:
-            for logger in loggers:
-                for h in logger.handlers:
-                    logger.removeHandler(h)
 
         # Set initial times.
         if stop and not start:
@@ -265,11 +275,11 @@ class XijaFit(object):
         ui.set_method(method)
         ui.get_method().config.update(sherpa_configs.get(method, {}))
 
-        ui.load_user_model(CalcModel(self.model), 'xijamod')  # sets global xijamod
+        ui.load_user_model(CalcModel(self.model, self.fit_logger), 'xijamod')  # sets global xijamod
         ui.add_user_pars('xijamod', self.model.parnames)
         ui.set_model(1, 'xijamod')
 
-        calc_stat = CalcStat(self.model)
+        calc_stat = CalcStat(self.model, self.fit_logger)
         ui.load_user_stat('xijastat', calc_stat, lambda x: np.ones_like(x))
         ui.set_stat(xijastat)
 
@@ -294,7 +304,10 @@ class XijaFit(object):
         if fit_stat is None:
             fit_stat = self.model.calc_stat()
 
-        snapshot = dict(zip(self.model.parnames, self.model.parvals))
+        snapshot = {}
+        for pars in self.model.pars:
+            snapshot[pars['full_name']] = {k: pars[k] for k in ('frozen', 'min', 'max', 'val')}
+
         snapshot['fit_stat'] = fit_stat
         snapshot['tstart'] = DateTime(self.model.tstart).date
         snapshot['tstop'] = DateTime(self.model.tstop).date
@@ -518,23 +531,32 @@ class XijaFit(object):
         if not found:
             print('Solarheat "roll" parameters not found')
 
-    def write_spec_file(self, filename=None):
+    def write_spec_file(self, filename=None, overwrite=False):
         """Write model definition to file.
 
         :param filename: filename to use for model definition file.
         """
         if not filename:
-            filename = "{}_model_spec.json".format(self.model.name)
+            if overwrite:
+                filename = "{}_model_spec.json".format(self.model.name)
+            else:
+                d = DateTime().date.replace(':', '')[:13]
+                filename = "{}_model_spec_{}.{}.json".format(self.model.name, d[:7], d[7:])
+
         self.model.write(filename)
 
-    def write_snapshots_file(self, filename=None):
+    def write_snapshots_file(self, filename=None, overwrite=False):
         """Write fitting snapshots to file.
 
         :param filename: filename to use for fitting snapshots file.
         """
         if not filename:
-            d = DateTime().date.replace(':', '')[:13]
-            filename = "{}_fit_snapshots_{}.{}.json".format(self.model.name, d[:7], d[7:])
+            if overwrite:
+                filename = "{}_fit_snapshots.json".format(self.model.name)
+            else:
+                d = DateTime().date.replace(':', '')[:13]
+                filename = "{}_fit_snapshots_{}.{}.json".format(self.model.name, d[:7], d[7:])
+
         with open(filename, 'w') as outfile:
             json.dump(self.snapshots, outfile, indent=4, sort_keys=True)
 
