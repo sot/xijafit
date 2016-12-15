@@ -6,13 +6,15 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 from time import sleep
+import re
+import logging
+import StringIO
+
 
 import sherpa.ui as ui
 from Chandra.Time import DateTime
 import Chandra.taco
 import xija
-import StringIO
-import logging
 
 try:
     import plot_cxctime_custom as plot_cxctime
@@ -304,11 +306,19 @@ class XijaFit(object):
         if fit_stat is None:
             fit_stat = self.model.calc_stat()
 
+        pattern = 'Final fit statistic\s*=\s*([0-9.e]+\+?\d*)\D+(\d+)'
+        found = re.findall(pattern, self.sherpa_log_capture_string.getvalue())
+        if found:
+            final_eval_num = found[-1][-1]
+        else:
+            final_eval_num = None
+
         snapshot = {}
         for pars in self.model.pars:
             snapshot[pars['full_name']] = {k: pars[k] for k in ('frozen', 'min', 'max', 'val')}
 
         snapshot['fit_stat'] = fit_stat
+        snapshot['final_eval_num'] = final_eval_num
         snapshot['tstart'] = DateTime(self.model.tstart).date
         snapshot['tstop'] = DateTime(self.model.tstop).date
         snapshot['method'] = method
@@ -550,12 +560,15 @@ class XijaFit(object):
 
         :param filename: filename to use for fitting snapshots file.
         """
+
         if not filename:
-            if overwrite:
-                filename = "{}_fit_snapshots.json".format(self.model.name)
-            else:
-                d = DateTime().date.replace(':', '')[:13]
-                filename = "{}_fit_snapshots_{}.{}.json".format(self.model.name, d[:7], d[7:])
+            filename = "{}_fit_snapshots.json".format(self.model.name)
+
+        if not overwrite:
+            pattern = '(.*)(\.\w+)?'
+            basestring = re.findall(pattern, filename)[0][0]
+            d = DateTime().date.replace(':', '')[:13]
+            filename = "{}_{}.{}.json".format(basestring, d[:7], d[7:])
 
         with open(filename, 'w') as outfile:
             json.dump(self.snapshots, outfile, indent=4, sort_keys=True)
