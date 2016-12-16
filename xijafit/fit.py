@@ -9,6 +9,7 @@ from time import sleep
 import re
 import logging
 import StringIO
+import os
 
 
 import sherpa.ui as ui
@@ -541,34 +542,58 @@ class XijaFit(object):
         if not found:
             print('Solarheat "roll" parameters not found')
 
+    def _backup_current_filename(self, filename):
+        """Create a backup of the current filename (if necessary) before it is overwritten.
+
+        :param filename: original intended filename
+
+        This requires that there be a file extension.
+        """
+
+        filename_parts = re.findall('(.*)\.(.+)', filename)[0]
+
+        if os.path.isfile(filename):
+            files = [f for f in os.listdir('.') if re.search(r'{}\..+-\d+'.format(filename_parts[0]), f)]
+
+            if files:
+                # In this case the "dash number" structure has been observed indicating existing backups
+                file_extension_structures = [re.findall('.*\.(.+)-(\d+)', f)[0] for f in files]
+                max_version = max([int(t[1]) for t in file_extension_structures])
+                base_file_extension = file_extension_structures[0][0]
+                new_filename = '{}.{}-{}'.format(filename_parts[0], base_file_extension, max_version + 1)
+                os.rename(filename, new_filename)
+
+            else:
+                # In this case the "dash number" structure has not been used
+                new_filename = '{}.{}-{}'.format(filename_parts[0], filename_parts[1], 1)
+                os.rename(filename, new_filename)
+
     def write_spec_file(self, filename=None, overwrite=False):
         """Write model definition to file.
 
         :param filename: filename to use for model definition file.
         """
+
         if not filename:
-            if overwrite:
-                filename = "{}_model_spec.json".format(self.model.name)
-            else:
-                d = DateTime().date.replace(':', '')[:13]
-                filename = "{}_model_spec_{}.{}.json".format(self.model.name, d[:7], d[7:])
+            filename = "{}_model_spec.json".format(self.model.name)
+
+        if not overwrite:
+            self._backup_current_filename(filename)
 
         self.model.write(filename)
 
     def write_snapshots_file(self, filename=None, overwrite=False):
         """Write fitting snapshots to file.
 
-        :param filename: filename to use for fitting snapshots file.
+        :param filename: filename to use for fitting snapshots file
+        :param overwrite: flag indicting whether or not it is ok to overwite the filename if it already exists
         """
 
         if not filename:
             filename = "{}_fit_snapshots.json".format(self.model.name)
 
         if not overwrite:
-            pattern = '(.*)(\.\w+)?'
-            basestring = re.findall(pattern, filename)[0][0]
-            d = DateTime().date.replace(':', '')[:13]
-            filename = "{}_{}.{}.json".format(basestring, d[:7], d[7:])
+            self._backup_current_filename(filename)
 
         with open(filename, 'w') as outfile:
             json.dump(self.snapshots, outfile, indent=4, sort_keys=True)
