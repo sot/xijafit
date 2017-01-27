@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from time import sleep
 import re
 import logging
-import StringIO
+import io
 import os
 
 
@@ -100,14 +100,14 @@ class XijaFit(object):
         self.sherpa_logger = logging.getLogger('sherpa')
         self.sherpa_logger.setLevel(logging.INFO)
 
-        self.log_capture_string = StringIO.StringIO()
+        self.log_capture_string = io.StringIO()
         ch = logging.StreamHandler(self.log_capture_string)
         ch.setLevel(logging.INFO)
         formatter = logging.Formatter('[%(levelname)s] (%(processName)-10s) %(message)s')
         ch.setFormatter(formatter)
         self.fit_logger.addHandler(ch)
 
-        self.sherpa_log_capture_string = StringIO.StringIO()
+        self.sherpa_log_capture_string = io.StringIO()
         sch = logging.StreamHandler(self.sherpa_log_capture_string)
         sch.setLevel(logging.INFO)
         sformatter = logging.Formatter('[%(levelname)s] (%(processName)-10s) %(message)s')
@@ -193,7 +193,7 @@ class XijaFit(object):
 
         # These solarheat parameters need to be defined to avoid an AttributeError in heat.py. The actual
         # values don't matter as they are deleted when setting the epoch.
-        for key, value in self.model.comp.items():
+        for key, value in list(self.model.comp.items()):
             if 'solarheat' in key:
                 if not hasattr(self.model.comp[key], 't_days'):
                     self.model.comp[key].t_days = -1
@@ -230,7 +230,7 @@ class XijaFit(object):
             # corresponding Python object.
             set_data_vals[comp_name] = ast.literal_eval(val)
 
-        for comp_name, val in set_data_vals.items():
+        for comp_name, val in list(set_data_vals.items()):
             self.model.comp[comp_name].set_data(val)
 
     def inherit_param_from(self, filename):
@@ -246,7 +246,7 @@ class XijaFit(object):
         inherit_pars = {par['full_name']: par for par in inherit_spec['pars']}
         for par in self.model.pars:
             if par.full_name in inherit_pars:
-                print "Inheriting par {}".format(par.full_name)
+                print("Inheriting par {}".format(par.full_name))
                 par.val = inherit_pars[par.full_name]['val']
                 par.min = inherit_pars[par.full_name]['min']
                 par.max = inherit_pars[par.full_name]['max']
@@ -258,7 +258,7 @@ class XijaFit(object):
 
         """
         new_epoch = np.mean(self.model.times[[0, -1]])
-        for comp in self.model.comp.values():
+        for comp in list(self.model.comp.values()):
             if isinstance(comp, xija.SolarHeat):
                 comp.epoch = new_epoch
                 try:
@@ -357,7 +357,7 @@ class XijaFit(object):
                 par['frozen'] = False
                 found = True
         if not found:
-            print('Parameter: {} not found'.format(param))
+            print(('Parameter: {} not found'.format(param)))
 
     def freeze_param(self, param):
         """Freeze specific parameter.
@@ -370,7 +370,7 @@ class XijaFit(object):
                 par['frozen'] = True
                 found = True
         if not found:
-            print('Parameter: {} not found'.format(param))
+            print(('Parameter: {} not found'.format(param)))
 
     def set_param(self, param, value):
         """Set parameter to specific value.
@@ -388,7 +388,7 @@ class XijaFit(object):
                     par['min'] = value
                 found = True
         if not found:
-            print('Parameter: {} not found'.format(param))
+            print(('Parameter: {} not found'.format(param)))
 
     def center_range(self, param, expansion=1.0):
         """Center parameter range around current value.
@@ -404,7 +404,7 @@ class XijaFit(object):
                 par['max'] = par['val'] + expansion * vrange / 2.0
                 found = True
         if not found:
-            print('Parameter: {} not found'.format(param))
+            print(('Parameter: {} not found'.format(param)))
 
     def set_range(self, param, minval, maxval):
         """Center parameter range around current value.
@@ -424,7 +424,7 @@ class XijaFit(object):
                     par['val'] = minval
                 found = True
         if not found:
-            print('Parameter: {} not found'.format(param))
+            print(('Parameter: {} not found'.format(param)))
 
     def zero_solarheat_p(self):
         """Set all short term solarheat "P" parameters zero.
@@ -615,7 +615,7 @@ def load_parameters_from_snapshot(model, snapshot):
                 elif value < par['min']:
                     par['min'] = value
 
-    for p in snapshot.keys():
+    for p in list(snapshot.keys()):
         if p in model.parnames:
             setval(model.pars, p, snapshot[p])
 
