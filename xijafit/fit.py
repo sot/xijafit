@@ -626,7 +626,6 @@ try:
     from ipywidgets import widgets
     import traitlets
     from IPython.display import display
-    import dashboard as dash
 
     class XijaParamGui(object):
         """Class for creating Jupyter based GUI for manually tweaking parameters.
@@ -743,15 +742,6 @@ try:
             _ = plot_cxctime(data.times, data.mvals * 9 / 5. + 32., color='r', fig=self.fig, ax=self.ax)
             _ = plot_cxctime(data.times, data.dvals * 9 / 5. + 32., color='b', fig=self.fig, ax=self.ax)
             _[-1].grid(True)
-
-        # def plotdash(self):
-        #     msiddata = self.model.model.get_comp(self.msid)
-        #     prediction = msiddata.mvals * 9. / 5. + 32.
-        #     telem = msiddata.dvals * 9. / 5. + 32.
-        #     times = msiddata.times
-        #     modellimits = {'units': 'F', 'caution_high': self.caution_high, 'planning_limit': self.planning_limit}
-        #     self.fig.clf()
-        #     dash.dashboard(prediction, telem, times, modellimits, modelname=self.msid, msid=self.msid, fig=self.fig)
 
 
 except ImportError:
