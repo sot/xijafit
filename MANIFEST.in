@@ -1,0 +1,3 @@
+
+recursive-include xijafit *
+include README.md
