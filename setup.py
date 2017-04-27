@@ -17,8 +17,7 @@ setup(
     url='http://cxc.cfa.harvard.edu/mta/ASPECT/tool_doc/xijafit/',
     license='BSD',
     description='Tool for automating the Xija model fitting process',
-    long_description=open('README.md').read(),
-    package_data={'xijafit': ['example_data/*.json']},
+    package_data={'xijafit.tests': ['*.json']},
     tests_require=['pytest'],
 
 )

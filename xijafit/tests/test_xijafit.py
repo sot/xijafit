@@ -1,15 +1,15 @@
 import pytest
 import sys
 from pathlib import Path # if you haven't already done so
-root = str(Path(__file__).resolve().parents[2])
+root = str(Path(__file__).resolve().parents[0])
 sys.path.append(root)
 
-from xijafit import XijaFit
+import xijafit
 
-BASE_MODEL = root + '/example_data/tcylaft6_model_spec_roll_base.json'
+BASE_MODEL = root + '/tcylaft6_model_spec_roll_base.json'
 
 def test_fit():
-    model = XijaFit(BASE_MODEL, set_data_exprs=(u'tcylaft6_0=22.0',), start='2013:300',
+    model = xijafit.XijaFit(BASE_MODEL, set_data_exprs=(u'tcylaft6_0=22.0',), start='2015:300',
       stop='2016:300',quiet=False, name='tcylaft6')
 
     model.freeze_all()
@@ -22,4 +22,4 @@ def test_fit():
     assert model.snapshots[0]['fit_stat'] > model.snapshots[1]['fit_stat']
 
 if __name__ == "__main__":
-  test_fit()
+    test_fit()

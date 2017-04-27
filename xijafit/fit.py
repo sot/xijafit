@@ -11,11 +11,17 @@ import logging
 import io
 import os
 
-
 import sherpa.ui as ui
 from Chandra.Time import DateTime
-import Chandra.taco
 import xija
+
+try:
+    import Chandra.taco
+    # Enable fully-randomized evaluation of ACIS-FP model which is desirable
+    # for fitting.
+    Chandra.taco.taco.set_random_salt(None)
+except ImportError:
+    pass
 
 try:
     import plot_cxctime_custom as plot_cxctime
@@ -114,9 +120,6 @@ class XijaFit(object):
         sch.setFormatter(sformatter)
         self.sherpa_logger.addHandler(sch)
 
-        # Enable fully-randomized evaluation of ACIS-FP model which is desirable
-        # for fitting.
-        Chandra.taco.taco.set_random_salt(None)
 
         # Set initial times.
         if stop and not start:
