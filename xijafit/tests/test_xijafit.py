@@ -1,7 +1,10 @@
 import pytest
 import sys
-from pathlib import Path # if you haven't already done so
-root = str(Path(__file__).resolve().parents[0])
+# from pathlib import Path
+# root = str(Path(__file__).resolve().parents[0])
+from os import path
+root = path.abspath(path.join(__file__, path.pardir))
+
 sys.path.append(root)
 
 import xijafit
