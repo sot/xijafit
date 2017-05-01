@@ -11,6 +11,14 @@ import logging
 import io
 import os
 
+try:
+    from ipywidgets import widgets
+    import traitlets
+    from IPython.display import display
+    HAS_JUPYTER = True
+except ImportError:
+    HAS_JUPYTER = False
+
 import sherpa.ui as ui
 from Chandra.Time import DateTime
 import xija
@@ -625,128 +633,121 @@ def load_parameters_from_snapshot(model, snapshot):
     return model.model_spec
 
 
-try:
-    from ipywidgets import widgets
-    import traitlets
-    from IPython.display import display
+class XijaParamGui(object):
+    """Class for creating Jupyter based GUI for manually tweaking parameters.
 
-    class XijaParamGui(object):
-        """Class for creating Jupyter based GUI for manually tweaking parameters.
+    This is not currently 100% functional. Parameter values don't always set to their new values, and modifying ranges
+    can have unexpected effects on values (e.g. resetting them to original values). The option to interactively view the
+    impact a modified parameter has on the model should also be included.
 
-        This is not currently 100% functional. Parameter values don't always set to their new values, and modifying ranges
-        can have unexpected effects on values (e.g. resetting them to original values). The option to interactively view the
-        impact a modified parameter has on the model should also be included.
+    """
+    def __init__(self, model, msid, caution_high=None, planning_limit=None):
+        if not HAS_JUPYTER:
+            raise ImportError('required imports for Jupyter widgets not available')
 
-        """
-        def __init__(self, model, msid, caution_high=None, planning_limit=None):
+        self.model = model
+        self.msid = msid
+        self.caution_high = caution_high
+        self.planning_limit = planning_limit
 
-            self.model = model
-            self.msid = msid
-            self.caution_high = caution_high
-            self.planning_limit = planning_limit
+        self.fig = plt.figure(figsize=(15, 8))
+        self.ax = self.fig.add_axes(rect=(0.05, 0.1, 0.8, 0.85))
 
-            self.fig = plt.figure(figsize=(15, 8))
-            self.ax = self.fig.add_axes(rect=(0.05, 0.1, 0.8, 0.85))
+        self.plothelper()
 
+        minlabel = "               Min".replace('', '&nbsp', )
+        maxlabel = "                                                           Max".replace('', '&nbsp', )
+        vallabel = "                       Value".replace('', '&nbsp', )
+        self.label = widgets.HTML(value=vallabel + minlabel + maxlabel)
+
+        params = []
+        for p in self.model.model.pars:
+            params.append(self.param_object(p))
+
+        display(self.label, *params)
+
+    def param_object(self, updateparam):
+
+        def onvalchange(p):
+            # print ("parameter1: {}".format(p))
+            updateparam['val'] = valtext.value
+            sleep(1)
             self.plothelper()
+            # print (self.updateparam)
 
-            minlabel = "               Min".replace('', '&nbsp', )
-            maxlabel = "                                                           Max".replace('', '&nbsp', )
-            vallabel = "                       Value".replace('', '&nbsp', )
-            self.label = widgets.HTML(value=vallabel + minlabel + maxlabel)
+        def onmaxchange(p):
+            sleep(1)
+            updateparam['max'] = maxtext.value
 
-            params = []
-            for p in self.model.model.pars:
-                params.append(self.param_object(p))
+        def onminchange(p):
+            sleep(1)
+            updateparam['min'] = mintext.value
 
-            display(self.label, *params)
+        def onfrozenchange(p):
+            # print ("parameter1: {}".format(p))
+            updateparam['frozen'] = frozen.value
+            # print (self.updateparam)
 
-        def param_object(self, updateparam):
+        minbound = updateparam['min']
+        maxbound = updateparam['max']
+        initialvalue = updateparam['val']
 
-            def onvalchange(p):
-                # print ("parameter1: {}".format(p))
-                updateparam['val'] = valtext.value
-                sleep(1)
-                self.plothelper()
-                # print (self.updateparam)
+        label = widgets.HTML(value=updateparam['full_name'], padding='5px')
+        slider = widgets.FloatSlider(value=initialvalue,
+                                     min=minbound,
+                                     max=maxbound,
+                                     step=0.001,
+                                     description='',
+                                     orientation='horizontal',
+                                     readout=False,
+                                     padding='5px')
+        slider.msg_throttle = 0
 
-            def onmaxchange(p):
-                sleep(1)
-                updateparam['max'] = maxtext.value
+        mintext = widgets.BoundedFloatText(value=minbound,
+                                           min=-1e20,
+                                           max=maxbound,
+                                           description=' ',
+                                           readout_format='.3f',
+                                           padding='5px')
+        mintext.observe(onminchange, names='value')
 
-            def onminchange(p):
-                sleep(1)
-                updateparam['min'] = mintext.value
+        maxtext = widgets.BoundedFloatText(value=maxbound,
+                                           min=minbound,
+                                           max=+1e20,
+                                           description=' ',
+                                           readout_format='.3f',
+                                           padding='5px')
+        maxtext.observe(onmaxchange, names='value')
 
-            def onfrozenchange(p):
-                # print ("parameter1: {}".format(p))
-                updateparam['frozen'] = frozen.value
-                # print (self.updateparam)
+        valtext = widgets.BoundedFloatText(value=slider.value,
+                                           min=slider.min,
+                                           max=slider.max,
+                                           description=' ',
+                                           readout_format='.3f',
+                                           padding='5px')
+        valtext.observe(onvalchange, names='value')
 
-            minbound = updateparam['min']
-            maxbound = updateparam['max']
-            initialvalue = updateparam['val']
+        frozen = widgets.Checkbox(description=' ', value=updateparam['frozen'], visible=True, padding='5px', height=20,
+                                  width=20)
+        frozen.observe(onfrozenchange, names='value')
 
-            label = widgets.HTML(value=updateparam['full_name'], padding='5px')
-            slider = widgets.FloatSlider(value=initialvalue,
-                                         min=minbound,
-                                         max=maxbound,
-                                         step=0.001,
-                                         description='',
-                                         orientation='horizontal',
-                                         readout=False,
-                                         padding='5px')
-            slider.msg_throttle = 0
+        lmin = traitlets.dlink((mintext, 'value'), (slider, 'min'))
+        lmax = traitlets.dlink((maxtext, 'value'), (slider, 'max'))
 
-            mintext = widgets.BoundedFloatText(value=minbound,
-                                               min=-1e20,
-                                               max=maxbound,
-                                               description=' ',
-                                               readout_format='.3f',
-                                               padding='5px')
-            mintext.observe(onminchange, names='value')
+        vlmin = traitlets.dlink((mintext, 'value'), (valtext, 'min'))
+        vlmax = traitlets.dlink((maxtext, 'value'), (valtext, 'max'))
 
-            maxtext = widgets.BoundedFloatText(value=maxbound,
-                                               min=minbound,
-                                               max=+1e20,
-                                               description=' ',
-                                               readout_format='.3f',
-                                               padding='5px')
-            maxtext.observe(onmaxchange, names='value')
+        lval = traitlets.link((slider, 'value'), (valtext, 'value'))
 
-            valtext = widgets.BoundedFloatText(value=slider.value,
-                                               min=slider.min,
-                                               max=slider.max,
-                                               description=' ',
-                                               readout_format='.3f',
-                                               padding='5px')
-            valtext.observe(onvalchange, names='value')
-
-            frozen = widgets.Checkbox(description=' ', value=updateparam['frozen'], visible=True, padding='5px', height=20,
-                                      width=20)
-            frozen.observe(onfrozenchange, names='value')
-
-            lmin = traitlets.dlink((mintext, 'value'), (slider, 'min'))
-            lmax = traitlets.dlink((maxtext, 'value'), (slider, 'max'))
-
-            vlmin = traitlets.dlink((mintext, 'value'), (valtext, 'min'))
-            vlmax = traitlets.dlink((maxtext, 'value'), (valtext, 'max'))
-
-            lval = traitlets.link((slider, 'value'), (valtext, 'value'))
-
-            return widgets.HBox(children=[label, valtext, mintext, slider, maxtext, frozen])
+        return widgets.HBox(children=[label, valtext, mintext, slider, maxtext, frozen])
 
 
-        def plothelper(self):
-            self.model.model.calc()
-            data = self.model.model.get_comp(self.msid)
-            self.ax = plt.gca()
-            self.ax.cla()
-            _ = plot_cxctime(data.times, data.mvals * 9 / 5. + 32., color='r', fig=self.fig, ax=self.ax)
-            _ = plot_cxctime(data.times, data.dvals * 9 / 5. + 32., color='b', fig=self.fig, ax=self.ax)
-            _[-1].grid(True)
+    def plothelper(self):
+        self.model.model.calc()
+        data = self.model.model.get_comp(self.msid)
+        self.ax = plt.gca()
+        self.ax.cla()
+        _ = plot_cxctime(data.times, data.mvals * 9 / 5. + 32., color='r', fig=self.fig, ax=self.ax)
+        _ = plot_cxctime(data.times, data.dvals * 9 / 5. + 32., color='b', fig=self.fig, ax=self.ax)
+        _[-1].grid(True)
 
-
-except ImportError:
-    print('Jupyter interface not available')
-    pass
