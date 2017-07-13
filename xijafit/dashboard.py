@@ -81,7 +81,7 @@ def calcquantstats(Ttelem, error):
     return Tquant
 
 
-def digitize_data(Ttelem, nbins=20):
+def digitize_data(Ttelem, nbins=50):
     """ Digitize telemetry.
 
     :param Ttelem: telemetry values
@@ -127,11 +127,11 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     # In this case the data is not discretized to a limited number of count values, or has too
     # many possible values to work with calcquantstats(), such as with tlm_fep1_mong.
     if len(np.sort(list(set(tlm)))) > 1000:
-        tlm = digitize_data(tlm)
+        quantized_tlm = digitize_data(tlm)
 
     error = tlm - prediction
     stats = calcquantiles(error)
-    quantstats = calcquantstats(tlm, error)
+    quantstats = calcquantstats(quantized_tlm, error)
 
     cautionhigh = limits['caution_high']
     planninglimit = limits['planning_limit']
