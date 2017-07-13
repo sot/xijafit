@@ -1,6 +1,7 @@
 
 import numpy as np
 import matplotlib
+import matplotlib.patheffects as path_effects
 
 from Chandra.Time import DateTime
 
@@ -22,6 +23,7 @@ def getQuantPlotPoints(quantstats, quantile):
     enclosing the data (i.e. the 1 and 99 percentile lines).
 
     """
+
     Tset = [T for (n, T) in quantstats['key']]
     diffTset = np.diff(Tset)
     Tpoints = Tset[:-1] + diffTset / 2
@@ -79,6 +81,25 @@ def calcquantstats(Ttelem, error):
     return Tquant
 
 
+def digitize_data(Ttelem, nbins=20):
+    """ Digitize telemetry.
+
+    :param Ttelem: telemetry values
+    :param nbins: number of bins
+    :returns: coordinates for error quantile line
+
+    """
+
+    # Bin boundaries
+    # Note that the min/max range is expanded to keep all telemetry within the outer boundaries.
+    # Also the number of boundaries is 1 more than the number of bins.
+    bins = np.linspace(min(Ttelem) - 1e-6, max(Ttelem) + 1e-6, nbins + 1)
+    inds = np.digitize(Ttelem, bins) - 1
+    means = bins[:-1] + np.diff(bins) / 2
+
+    return np.array([means[i] for i in inds])
+
+
 def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
               errorplotlimits=None, yplotlimits=None, fig=None):
     """ Plot Xija model dashboard.
@@ -103,6 +124,10 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     matplotlib.rc('font', family='sans-serif')
     matplotlib.rc('font', weight='light')
 
+    # In this case the data is not discretized to a limited number of count values, or has too
+    # many possible values to work with calcquantstats(), such as with tlm_fep1_mong.
+    if len(np.sort(list(set(tlm)))) > 1000:
+        tlm = digitize_data(tlm)
 
     error = tlm - prediction
     stats = calcquantiles(error)
@@ -168,7 +193,10 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
         chx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
         chy = 0.01 * (ylim1[1] - ylim1[0]) + cautionhigh
         txt = ax1.text(chx, chy, 'Caution High (Yellow) = {:4.1f} {}'.format(cautionhigh, units),
-                ha="left", va="bottom", fontsize=16)
+                ha="left", va="bottom", fontsize=14)
+        txt.set_path_effects([path_effects.Stroke(linewidth=3, foreground='white', alpha=0.7),
+                       path_effects.Normal()])
+
         txt.set_bbox(dict(color='white', alpha=0))
 
     # Draw planning limit line.
@@ -195,8 +223,10 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     plx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
     ply = 0.01 * (ylim1[1] - ylim1[0]) + planninglimit
     txt = ax1.text(plx, ply, 'Planning Limit = {:4.1f} {}'.format(planninglimit, units),
-	    ha="left", va="bottom", fontsize=16)
-    txt.set_bbox(dict(color='white', alpha=0))
+	    ha="left", va="bottom", fontsize=14)
+    txt.set_path_effects([path_effects.Stroke(linewidth=3, foreground='white', alpha=0.7),
+                       path_effects.Normal()])
+    # txt.set_bbox(dict(color='white', alpha=0))
 
     # ---------------------------------------------------------------------------------------------
     # Axis 2 - Model Error vs Time
