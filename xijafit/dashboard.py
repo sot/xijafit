@@ -124,14 +124,16 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     matplotlib.rc('font', family='sans-serif')
     matplotlib.rc('font', weight='light')
 
+    error = tlm - prediction
+    stats = calcquantiles(error)
+
     # In this case the data is not discretized to a limited number of count values, or has too
     # many possible values to work with calcquantstats(), such as with tlm_fep1_mong.
     if len(np.sort(list(set(tlm)))) > 1000:
         quantized_tlm = digitize_data(tlm)
-
-    error = tlm - prediction
-    stats = calcquantiles(error)
-    quantstats = calcquantstats(quantized_tlm, error)
+        quantstats = calcquantstats(quantized_tlm, error)
+    else:
+        quantstats = calcquantstats(tlm, error)
 
     cautionhigh = limits['caution_high']
     planninglimit = limits['planning_limit']
