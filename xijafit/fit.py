@@ -553,6 +553,30 @@ class XijaFit(object):
         if not found:
             print('Solarheat "roll" parameters not found')
 
+    def freeze_dpa_power_bins(self):
+        """Freeze all dpa power parameters.
+        """
+        p = 'dpa_power__pow_[0-9x]+'
+        found = False
+        for par in self.model.pars:
+            if re.match(p, par.full_name):
+                par['frozen'] = True
+                found = True
+        if not found:
+            print('DPA power bin parameters not found')
+
+    def thaw_dpa_power_bins(self):
+        """Thaw all dpa power parameters.
+        """
+        p = 'dpa_power__pow_[0-9x]+'
+        found = False
+        for par in self.model.pars:
+            if re.match(p, par.full_name):
+                par['frozen'] = False
+                found = True
+        if not found:
+            print('DPA power bin parameters not found')
+
     def _backup_current_filename(self, filename):
         """Create a backup of the current filename (if necessary) before it is overwritten.
 
