@@ -8,6 +8,10 @@ from Chandra.Time import DateTime
 if 'k' not in matplotlib.rcParams['text.color']:
     matplotlib.rcParams['axes.facecolor'] = [.1,.15,.2]
 
+matplotlib.rcParams['xtick.major.pad'] = 3
+matplotlib.rcParams['ytick.major.pad'] = 3
+
+
 
 plt = matplotlib.pyplot
 
@@ -101,7 +105,7 @@ def digitize_data(Ttelem, nbins=50):
 
 
 def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
-              errorplotlimits=None, yplotlimits=None, fig=None):
+              errorplotlimits=None, yplotlimits=None, fig=None, savefig=True):
     """ Plot Xija model dashboard.
 
     :param prediction: model prediction
@@ -119,8 +123,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     """
 
     # Set some plot characteristic default values
-    matplotlib.rcParams['xtick.major.pad'] = 10
-    matplotlib.rcParams['ytick.major.pad'] = 5
+    # matplotlib.rcParams['xtick.major.pad'] = 10
+    # matplotlib.rcParams['ytick.major.pad'] = 5
     matplotlib.rc('font', family='sans-serif')
     matplotlib.rc('font', weight='light')
 
@@ -159,15 +163,14 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     #
 
     ax1 = fig.add_axes([0.1, 0.38, 0.44, 0.50], frameon=True)
-    ax1.hold(True)
     ax1.plot(times, prediction, color=[1.0, 0.2, 0.2], linewidth=1, label='Model')
     ax1.plot(times, tlm, color=[0, 0, 1], linewidth=1.5, label='Telemetry')
     ax1.set_title('%s Temperature (%s)' % (modelname.replace('_', ' '), msid.upper()),
-                  fontsize=20, y=1.02)
+                  fontsize=18, y=1.00)
     ax1.set_ylabel('Temperature deg%s' % units, fontsize=18)
     if yplotlimits is not None:
         ax1.set_ylim(yplotlimits)
-    ax1.set_yticklabels(ax1.get_yticks(), fontsize=18)
+    ax1.set_yticklabels(ax1.get_yticks(), fontsize=16)
     ax1.set_xticks(xtick)
     ax1.set_xticklabels('')
     ax1.set_xlim(xtick[0] - 10, times[-1])
@@ -177,9 +180,10 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
         # Draw caution high limit line.
         ylim1 = ax1.get_ylim()
+        dy = ylim1[1] - ylim1[0]
         if ylim1[1]-2 <= cautionhigh:
-            ax1.set_ylim(ylim1[0], cautionhigh + 4)
-            ax1.set_yticklabels(ax1.get_yticks(), fontsize=18)
+            ax1.set_ylim(ylim1[0], cautionhigh + dy/7.)
+            ax1.set_yticklabels(ax1.get_yticks(), fontsize=16)
         ylim1 = ax1.get_ylim()
         yellowlimitline = ax1.plot(ax1.get_xlim(), [cautionhigh, cautionhigh], 'orange',
                                    linewidth=1.5)
@@ -195,7 +199,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
         chx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
         chy = 0.01 * (ylim1[1] - ylim1[0]) + cautionhigh
         txt = ax1.text(chx, chy, 'Caution High (Yellow) = {:4.1f} {}'.format(cautionhigh, units),
-                ha="left", va="bottom", fontsize=14)
+                ha="left", va="bottom", fontsize=12)
         txt.set_path_effects([path_effects.Stroke(linewidth=3, foreground='white', alpha=0.7),
                        path_effects.Normal()])
 
@@ -225,7 +229,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     plx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
     ply = 0.01 * (ylim1[1] - ylim1[0]) + planninglimit
     txt = ax1.text(plx, ply, 'Planning Limit = {:4.1f} {}'.format(planninglimit, units),
-	    ha="left", va="bottom", fontsize=14)
+	    ha="left", va="bottom", fontsize=12)
     txt.set_path_effects([path_effects.Stroke(linewidth=3, foreground='white', alpha=0.7),
                        path_effects.Normal()])
     # txt.set_bbox(dict(color='white', alpha=0))
@@ -237,17 +241,16 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     #
 
     ax2 = fig.add_axes([0.1, 0.1, 0.44, 0.2], frameon=True)
-    ax2.hold(True)
     ax2.plot(times, error, color=[0, 0, 1], label='Telemetry')
     if errorplotlimits:
         ax2.set_ylim(errorplotlimits)
 
     ax2.set_title('%s Model Error (Telemetry - Model)' % modelname.replace('_', ' '),
-                  fontsize=20, y=1.02)
+                  fontsize=18, y=1.00)
     ax2.set_ylabel('Error deg%s' % units, fontsize=18)
-    ax2.set_yticklabels(ax2.get_yticks(), fontsize=18)
+    ax2.set_yticklabels(ax2.get_yticks(), fontsize=16)
     ax2.set_xticks(xtick)
-    ax2.set_xticklabels(xlab, fontsize=16, rotation=30, ha='right')
+    ax2.set_xticklabels(xlab, fontsize=14, rotation=30, ha='right')
     ax2.set_xlim(xtick[0] - 10, times[-1])
     ax2.grid(True)
 
@@ -268,11 +271,10 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     noise = np.random.uniform(-band, band, len(tlm))
 
     ax3 = fig.add_axes([0.62, 0.38, 0.36, 0.50], frameon=True)
-    ax3.hold(True)
     ax3.plot(error, tlm + noise, 'bo', alpha=1, markersize=2, markeredgecolor='blue')
     #ax3.plot(error, prediction + noise, 'b,', alpha = 0.1)
     ax3.set_title('%s Telemetry \n vs. Model Error'
-                  % modelname.replace('_', ' '), fontsize=20, y=1.02)
+                  % modelname.replace('_', ' '), fontsize=18, y=1.00)
     ax3.set_ylabel('Temperature deg%s' % units, fontsize=18)
     ax3.grid(True)
 
@@ -284,23 +286,10 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
     ax3.set_ylim(ax1.get_ylim())
     ax3.set_yticks(ax1.get_yticks())
-    ax3.set_yticklabels(ax1.get_yticks(), fontsize=18)
+    ax3.set_yticklabels(ax1.get_yticks(), fontsize=16)
     ylim3 = ax3.get_ylim()
 
-    ax3.set_xticklabels(ax3.get_xticks(), fontsize=18)
-    xlim3 = ax3.get_xlim()
-
-    if cautionhigh:
-
-        # Draw caution high limit line.
-        dt = 0.05 * np.diff(ax1.get_ylim())
-        yellowlimitline3 = ax3.plot(xlim3, [cautionhigh, cautionhigh], 'orange', linewidth=1.5)
-        if ylim3[1] <= cautionhigh:
-            ax3.set_ylim(ylim3[0], cautionhigh + 1)
-            ax3.set_yticklabels(ax3.get_yticks(), fontsize=18)
-
-    # Draw planning limit line.
-    planninglimitline3 = ax3.plot(xlim3, [planninglimit, planninglimit], 'g--', linewidth=1.5)
+    ax3.set_xticklabels(ax3.get_xticks(), fontsize=16)
 
     # Plot quantile lines for each count value
     Epoints01, Tpoints01 = getQuantPlotPoints(quantstats, 'q01')
@@ -313,6 +302,11 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     ax3.plot(Epoints99, Tpoints99, 'k', linewidth=2)
     ax3.plot(Epoints50, Tpoints50, 'k', linewidth=1.5)
 
+
+    xlim3 = ax3.get_xlim()
+    ylim1 = ax1.get_ylim() # Match axis 1 y scale
+
+
     # ---------------------------------------------------------------------------------------------
     # Axis 4 - Error Distribution Histogram
     #
@@ -322,7 +316,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
     ax4 = fig.add_axes([0.62, 0.1, 0.36, 0.2], frameon=True)
     n, bins, patches = ax4.hist(error, 40, range=errorplotlimits, facecolor='blue')
-    ax4.set_title('Error Distribution', fontsize=20, y=1.02)
+    ax4.set_title('Error Distribution', fontsize=18, y=1.0)
     ytick4 = ax4.get_yticks()
 
     # This is an option so that the user can tweak the two righthand plots to use a reasonable
@@ -334,11 +328,9 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
         xlim_offset = (np.max(error) - np.min(error))*0.1
         ax4.set_xlim(np.min(error) - xlim_offset, np.max(error) + xlim_offset)
 
-    ax4.set_xticklabels(ax4.get_xticks(), fontsize=18)
-
     # Plot lines for statistical boundaries.
     ylim4 = ax4.get_ylim()
-    ax4.set_yticklabels(['%2.0f%%' % (100 * n / len(prediction)) for n in ytick4], fontsize=16)
+    ax4.set_yticklabels(['%2.0f%%' % (100 * n / len(prediction)) for n in ytick4], fontsize=14)
     ax4.plot([stats['q01'], stats['q01'] + 1e-6], ylim4, color=[.5, .5, .5], linestyle='--',
              linewidth=1.5, alpha=1)
     ax4.plot([stats['q99'], stats['q99'] + 1e-6], ylim4, color=[.5, .5, .5], linestyle='--',
@@ -365,8 +357,40 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
         ptext4d = ax4.text(np.max(error) - xoffset * 0.9, ystart, 'Maximum Error', ha="left",
                            va="center", rotation=90, size=14)
 
+    xlim4 = ax4.get_xlim()
+
+    xlimright = [min(xlim3[0], xlim4[0]), max(xlim3[1], xlim4[1])]
+    ax4.set_ylim(ylim4)
+    ax4.set_xlim(xlimright)
+    ax4.set_xticklabels(ax4.get_xticks(), fontsize=16)
+
+    # Replot axis 3 using widest right hand side xlim
+    if cautionhigh:
+    #     # Draw caution high limit line.
+        yellowlimitline3 = ax3.plot(xlimright, [cautionhigh, cautionhigh], 'orange', linewidth=1.5)
+
+    # Draw planning limit line.
+    planninglimitline3 = ax3.plot(xlimright, [planninglimit, planninglimit], 'g--', linewidth=1.5)
+    ax3.set_xlim(xlimright)
+    ax3.set_xticklabels(ax3.get_xticks())
+
+    # I know the following code looks to be redundant and unnecessary, but for some unholy reason,
+    # Matplotlib REALLY does not want the top two axes to share the same Y scale. The following
+    # code is used to pound Matplotlib into submission.
+    ax3.set_ylim(ax1.get_ylim())
+    ax3.set_ybound(ax1.get_ylim())
+    ax3.set_yticks(ax1.get_yticks())
+    ax3.set_yticklabels(ax1.get_yticks())
+
+    ax1.set_ylim(ax1.get_ylim())
+    ax1.set_ybound(ax1.get_ylim())
+    ax1.set_yticks(ax1.get_yticks())
+    ax1.set_yticklabels(ax1.get_yticks())
+
     # ---------------------------------------------------------------------------------------------
     # Force redraw and save.
 
     plt.draw()
-    fig.savefig(modelname + '_' + msid.upper() + '_Model_Dashboard.png')
+
+    if savefig:
+        fig.savefig(modelname + '_' + msid.upper() + '_Model_Dashboard.png')
