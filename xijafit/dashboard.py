@@ -8,8 +8,8 @@ from Chandra.Time import DateTime
 if 'k' not in matplotlib.rcParams['text.color']:
     matplotlib.rcParams['axes.facecolor'] = [.1,.15,.2]
 
-matplotlib.rcParams['xtick.major.pad'] = 3
-matplotlib.rcParams['ytick.major.pad'] = 3
+matplotlib.rcParams['xtick.major.pad'] = 5
+matplotlib.rcParams['ytick.major.pad'] = 5
 
 
 
@@ -170,7 +170,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     ax1.set_ylabel('Temperature deg%s' % units, fontsize=18)
     if yplotlimits is not None:
         ax1.set_ylim(yplotlimits)
-    ax1.set_yticklabels(ax1.get_yticks(), fontsize=16)
+    ax1.set_yticklabels(ax1.get_yticks(), fontsize=14)
     ax1.set_xticks(xtick)
     ax1.set_xticklabels('')
     ax1.set_xlim(xtick[0] - 10, times[-1])
@@ -183,7 +183,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
         dy = ylim1[1] - ylim1[0]
         if ylim1[1]-2 <= cautionhigh:
             ax1.set_ylim(ylim1[0], cautionhigh + dy/7.)
-            ax1.set_yticklabels(ax1.get_yticks(), fontsize=16)
+            ax1.set_yticklabels(ax1.get_yticks(), fontsize=14)
         ylim1 = ax1.get_ylim()
         yellowlimitline = ax1.plot(ax1.get_xlim(), [cautionhigh, cautionhigh], 'orange',
                                    linewidth=1.5)
@@ -248,7 +248,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     ax2.set_title('%s Model Error (Telemetry - Model)' % modelname.replace('_', ' '),
                   fontsize=18, y=1.00)
     ax2.set_ylabel('Error deg%s' % units, fontsize=18)
-    ax2.set_yticklabels(ax2.get_yticks(), fontsize=16)
+    ax2.set_yticklabels(ax2.get_yticks(), fontsize=14)
+    # ax2.tick_params(axis='x', which='major', pad=1)
     ax2.set_xticks(xtick)
     ax2.set_xticklabels(xlab, fontsize=14, rotation=30, ha='right')
     ax2.set_xlim(xtick[0] - 10, times[-1])
@@ -286,10 +287,10 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
     ax3.set_ylim(ax1.get_ylim())
     ax3.set_yticks(ax1.get_yticks())
-    ax3.set_yticklabels(ax1.get_yticks(), fontsize=16)
+    ax3.set_yticklabels(ax1.get_yticks(), fontsize=14)
     ylim3 = ax3.get_ylim()
 
-    ax3.set_xticklabels(ax3.get_xticks(), fontsize=16)
+    ax3.set_xticklabels(ax3.get_xticks(), fontsize=14)
 
     # Plot quantile lines for each count value
     Epoints01, Tpoints01 = getQuantPlotPoints(quantstats, 'q01')
@@ -362,7 +363,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     xlimright = [min(xlim3[0], xlim4[0]), max(xlim3[1], xlim4[1])]
     ax4.set_ylim(ylim4)
     ax4.set_xlim(xlimright)
-    ax4.set_xticklabels(ax4.get_xticks(), fontsize=16)
+    ax4.set_xticklabels(ax4.get_xticks(), fontsize=14)
 
     # Replot axis 3 using widest right hand side xlim
     if cautionhigh:
