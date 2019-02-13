@@ -20,7 +20,9 @@ def assemble_cases(options, n_sim, max_dwell_ksec, dwell_2_pitch_num, dates):
                 'max_tcylaft6': '999',
                 'max_tephin': '999',
                 'max_4rt700t': '999',
-                'max_fptemp_11': '999'}
+                'max_fptemp_11': '999',
+                'max_pline03t': '999',
+                'max_pline04t': '999'}
 
     newcases = []
     for date in dates:
@@ -102,33 +104,6 @@ def factors(n):
                                      for i in range(1, int(n**0.5) + 1) if n % i == 0)))
 
 
-def add_pline(postdata):
-    dwell_156_162 = 60 * (9 * 60 + 20)
-    dwell_156_166 = 60 * (7 * 60 + 50)
-    dwell_156_170 = 60 * (4 * 60 + 20)
-
-    postdata.max_hot_time.max_time[156] = dwell_156_162
-    postdata.max_hot_time.max_time[157] = dwell_156_162
-    postdata.max_hot_time.max_time[158] = dwell_156_162
-    postdata.max_hot_time.max_time[159] = dwell_156_162
-    postdata.max_hot_time.max_time[160] = dwell_156_162
-    postdata.max_hot_time.max_time[161] = dwell_156_162
-    postdata.max_hot_time.max_time[162] = dwell_156_162
-    postdata.max_hot_time.max_time[163] = dwell_156_166
-    postdata.max_hot_time.max_time[164] = dwell_156_166
-    postdata.max_hot_time.max_time[165] = dwell_156_166
-    postdata.max_hot_time.max_time[166] = dwell_156_166
-    postdata.max_hot_time.max_time[167] = dwell_156_170
-    postdata.max_hot_time.max_time[168] = dwell_156_170
-    postdata.max_hot_time.max_time[169] = dwell_156_170
-    postdata.max_hot_time.max_time[170] = dwell_156_170
-
-    for n in range(156, 171, 1):
-        postdata.max_hot_time.limiting_msid[n] = 'PLINE'
-
-    return postdata
-
-
 def get_max_times(postdata, maxsec=600000):
     # Use a maximum dwell time in place of Nans.
     indnan = np.isnan(postdata.max_hot_time.max_time)
@@ -147,7 +122,8 @@ def get_msid_plot_info():
         '1DPAMZT',
         '1DEAMZT',
         'FPTEMP_11',
-        'PLINE']
+        'PLINE03T',
+        'PLINE04T']
     units = {
         '1PDEAAT': 'C',
         'TCYLAFT6': 'F',
@@ -157,17 +133,14 @@ def get_msid_plot_info():
         '1DPAMZT': 'C',
         '1DEAMZT': 'C',
         'FPTEMP_11': 'C',
-        'PLINE': ''}
-    colors = ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3',
-              '#a6d854', '#ffd92f', '#e5c494', '#b3b3b3', '#444444']
-    # limits = dict(zip(msids, [999] * len(msids)))
-    # for msid in msids:
-    #     if msid == 'PLINE':
-    #         limits[msid] = 'See Table'
-    #     else:
-    #         for case in cases:
-    #             limits[msid] = np.min(
-    #                 (np.float(case['max_' + msid.lower()]), limits[msid]))
+        'PLINE03T': 'F',
+        'PLINE04T': 'F'}
+    # colors = ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3',
+    #           '#a6d854', '#ffd92f', '#e5c494', '#b3b3b3', '#444444']
+
+    colors = ['#4e79a7', '#f28e2b', '#e15759', '#59a14f', 
+             '#edc948', '#b07aa1', '#9c755f', '#bab0ac', '#4e79a7']
+
     return msids, units, colors #, limits
 
 
@@ -312,21 +285,25 @@ if __name__ == '__main__':
     dwell_2_pitch_num = 200
 
     options = {'TCYLAFT6': {'units': 'F', 'startlim': 108, 'stoplim': 108, 'limstep': 1,
-                            'nccd1': [4, ], 'dh': ['ON', ], 'model': 'tcylaft6', 'sameccd': True, 'roll': 0.0},
+                            'nccd1': [4, ], 'dh': ['OFF', ], 'model': 'tcylaft6', 'sameccd': True, 'roll': 0.0},
                'PFTANK2T': {'units': 'F', 'startlim': 93, 'stoplim': 93, 'limstep': 1,
-                            'nccd1': [4, ], 'dh': ['ON', ], 'model': 'tank', 'sameccd': True, 'roll': 0.0},
+                            'nccd1': [4, ], 'dh': ['OFF', ], 'model': 'tank', 'sameccd': True, 'roll': 0.0},
                'AACCCDPT': {'units': 'C', 'startlim': -12.5, 'stoplim': -12.5, 'limstep': 1,
-                            'nccd1': [4, ], 'dh': ['ON', ], 'model': 'aca', 'sameccd': True, 'roll': 0.0},
+                            'nccd1': [4, ], 'dh': ['OFF', ], 'model': 'aca', 'sameccd': True, 'roll': 0.0},
                '4RT700T': {'units': 'F', 'startlim': 84, 'stoplim': 84, 'limstep': 1,
-                           'nccd1': [4, ], 'dh': ['ON', ], 'model': 'fwdblkhd', 'sameccd': True, 'roll': 0.0},
+                           'nccd1': [4, ], 'dh': ['OFF', ], 'model': 'fwdblkhd', 'sameccd': True, 'roll': 0.0},
                '1PDEAAT': {'units': 'C', 'startlim': 52.5, 'stoplim': 52.5, 'limstep': 0.5,
-                           'nccd1': [4, ], 'dh': ['ON', ], 'model': 'psmc', 'sameccd': True, 'roll': 0.0},
+                           'nccd1': [4, ], 'dh': ['OFF', ], 'model': 'psmc', 'sameccd': True, 'roll': 0.0},
                '1DPAMZT': {'units': 'C', 'startlim': 35.5, 'stoplim': 35.5, 'limstep': 0.5,
-                           'nccd1': [4, ], 'dh': ['ON', ], 'model': 'dpa', 'sameccd': True, 'roll': 0.0},
+                           'nccd1': [4, ], 'dh': ['OFF', ], 'model': 'dpa', 'sameccd': True, 'roll': 0.0},
                '1DEAMZT': {'units': 'C', 'startlim': 35.5, 'stoplim': 35.5, 'limstep': 0.5,
-                           'nccd1': [4, ], 'dh': ['ON', ], 'model': 'dea', 'sameccd': True, 'roll': 0.0},
+                           'nccd1': [4, ], 'dh': ['OFF', ], 'model': 'dea', 'sameccd': True, 'roll': 0.0},
                'FPTEMP_11': {'units': 'C', 'startlim': -114, 'stoplim': -114, 'limstep': 1,
-                             'nccd1': [4, ], 'dh': ['ON', ], 'model': 'acisfp', 'sameccd': True, 'roll': 0.0}}
+                             'nccd1': [4, ], 'dh': ['OFF', ], 'model': 'acisfp', 'sameccd': True, 'roll': 0.0},
+               'PLINE03T': {'units': 'F', 'startlim': 50, 'stoplim': 50, 'limstep': 1,
+                             'nccd1': [4, ], 'dh': ['OFF', ], 'model': 'pline03t', 'sameccd': True, 'roll': 0.0},
+               'PLINE04T': {'units': 'F', 'startlim': 50, 'stoplim': 50, 'limstep': 1,
+                             'nccd1': [4, ], 'dh': ['OFF', ], 'model': 'pline04t', 'sameccd': True, 'roll': 0.0}}
 
     limits = dict(list(zip(list(options.keys()), [options[k]['stoplim'] for k in list(options.keys())])))  # use 'See Table' for PLINE
 

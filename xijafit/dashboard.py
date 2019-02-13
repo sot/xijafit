@@ -163,8 +163,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     #
 
     ax1 = fig.add_axes([0.1, 0.38, 0.44, 0.50], frameon=True)
-    ax1.plot(times, prediction, color=[1.0, 0.2, 0.2], linewidth=1, label='Model')
-    ax1.plot(times, tlm, color=[0, 0, 1], linewidth=1.5, label='Telemetry')
+    ax1.plot(times, prediction, color='#d92121', linewidth=1, label='Model')
+    ax1.plot(times, tlm, color='#386cb0', linewidth=1.5, label='Telemetry')
     ax1.set_title('%s Temperature (%s)' % (modelname.replace('_', ' '), msid.upper()),
                   fontsize=18, y=1.00)
     ax1.set_ylabel('Temperature deg%s' % units, fontsize=18)
@@ -241,7 +241,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     #
 
     ax2 = fig.add_axes([0.1, 0.1, 0.44, 0.2], frameon=True)
-    ax2.plot(times, error, color=[0, 0, 1], label='Telemetry')
+    ax2.plot(times, error, color='#386cb0', label='Telemetry')
     if errorplotlimits:
         ax2.set_ylim(errorplotlimits)
 
@@ -272,7 +272,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     noise = np.random.uniform(-band, band, len(tlm))
 
     ax3 = fig.add_axes([0.62, 0.38, 0.36, 0.50], frameon=True)
-    ax3.plot(error, tlm + noise, 'bo', alpha=1, markersize=2, markeredgecolor='blue')
+    ax3.plot(error, tlm + noise, 'o', color='#386cb0', alpha=1, markersize=2, markeredgecolor='#386cb0')
     #ax3.plot(error, prediction + noise, 'b,', alpha = 0.1)
     ax3.set_title('%s Telemetry \n vs. Model Error'
                   % modelname.replace('_', ' '), fontsize=18, y=1.00)
@@ -316,7 +316,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     #
 
     ax4 = fig.add_axes([0.62, 0.1, 0.36, 0.2], frameon=True)
-    n, bins, patches = ax4.hist(error, 40, range=errorplotlimits, facecolor='blue')
+    n, bins, patches = ax4.hist(error, 40, range=errorplotlimits, facecolor='#386cb0')
     ax4.set_title('Error Distribution', fontsize=18, y=1.0)
     ytick4 = ax4.get_yticks()
 
