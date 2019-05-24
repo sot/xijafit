@@ -139,9 +139,12 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     else:
         quantstats = calcquantstats(tlm, error)
 
-    cautionhigh = limits['caution_high']
-    planninglimit = limits['planning_limit']
     units = limits['units']
+    cautionhigh = limits.get('caution_high', None)
+    planninglimit = limits.get('planning_limit', None)
+    acisi_limit = limits.get('acisi_limit', None)
+    aciss_limit = limits.get('aciss_limit', None)
+    fp_sens_limit = limits.get('fp_sens_limit', None)
 
     startsec = DateTime(times[0]).secs
     stopsec = DateTime(times[-1]).secs
@@ -205,34 +208,84 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
         txt.set_bbox(dict(color='white', alpha=0))
 
-    # Draw planning limit line.
-    planninglimitline1 = ax1.plot(ax1.get_xlim(), [planninglimit, planninglimit], 'g--',
-                                  linewidth=1.5)
-    ylim1 = ax1.get_ylim()
+    if planninglimit:
 
-    # Print planning limit value (remember plot is 50% of fig height).
-    #if (ylim1[-1] - planninglimit) / np.diff(ylim1) < 0.1:
-    #    plfig = 0.50 * (planninglimit - ylim1[0]) / (np.diff(ylim1)) + 0.38
-    #else:
-    #    # <-- figure coordinates (plot is 50% of fig height)
-    #    plfig = 0.50 * (planninglimit - ylim1[0]) / (np.diff(ylim1)) + 0.38 + 0.01
-    #	
-    #if cautionhigh:
-    #    if np.abs(planninglimit - cautionhigh)/np.diff(ylim1) < 0.1:
-    #        plfig = plfig + 0.02
-	
-    #txt = fig.text(0.11, plfig - 0.005, 'Planning Limit = {:4.1f} {}'.format(
-    #       planninglimit, units), ha="left", va="top", size=18)
-    #txt.set_bbox(dict(color='white', alpha=0.8))
-    
-    xlim1 = ax1.get_xlim()
-    plx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
-    ply = 0.01 * (ylim1[1] - ylim1[0]) + planninglimit
-    txt = ax1.text(plx, ply, 'Planning Limit = {:4.1f} {}'.format(planninglimit, units),
-	    ha="left", va="bottom", fontsize=12)
-    txt.set_path_effects([path_effects.Stroke(linewidth=3, foreground='white', alpha=0.7),
-                       path_effects.Normal()])
-    # txt.set_bbox(dict(color='white', alpha=0))
+        # Draw planning limit line.
+        planninglimitline1 = ax1.plot(ax1.get_xlim(), [planninglimit, planninglimit], 'g--',
+                                      linewidth=1.5)
+        ylim1 = ax1.get_ylim()
+
+        # Print planning limit value (remember plot is 50% of fig height).
+        #if (ylim1[-1] - planninglimit) / np.diff(ylim1) < 0.1:
+        #    plfig = 0.50 * (planninglimit - ylim1[0]) / (np.diff(ylim1)) + 0.38
+        #else:
+        #    # <-- figure coordinates (plot is 50% of fig height)
+        #    plfig = 0.50 * (planninglimit - ylim1[0]) / (np.diff(ylim1)) + 0.38 + 0.01
+        #
+        #if cautionhigh:
+        #    if np.abs(planninglimit - cautionhigh)/np.diff(ylim1) < 0.1:
+        #        plfig = plfig + 0.02
+
+        #txt = fig.text(0.11, plfig - 0.005, 'Planning Limit = {:4.1f} {}'.format(
+        #       planninglimit, units), ha="left", va="top", size=18)
+        #txt.set_bbox(dict(color='white', alpha=0.8))
+
+        xlim1 = ax1.get_xlim()
+        plx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
+        ply = 0.01 * (ylim1[1] - ylim1[0]) + planninglimit
+        txt = ax1.text(plx, ply, 'Planning Limit = {:4.1f} {}'.format(planninglimit, units),
+                       ha="left", va="bottom", fontsize=12)
+        txt.set_path_effects([path_effects.Stroke(linewidth=3, foreground='white', alpha=0.7),
+                              path_effects.Normal()])
+        # txt.set_bbox(dict(color='white', alpha=0))
+
+    if acisi_limit:
+
+        # Draw ACIS-I limit line.
+        acisilimitline = ax1.plot(ax1.get_xlim(), [acisi_limit, acisi_limit], 'b-.',
+                                  linewidth=1.5)
+
+        ylim1 = ax1.get_ylim()
+
+        xlim1 = ax1.get_xlim()
+        plx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
+        ply = 0.01 * (ylim1[1] - ylim1[0]) + acisi_limit
+        txt = ax1.text(plx, ply, 'ACIS-I Limit = {:4.1f} {}'.format(acisi_limit, units),
+                       ha="left", va="bottom", fontsize=14)
+        txt.set_path_effects([path_effects.Stroke(linewidth=4, foreground='white', alpha=1.0),
+                              path_effects.Normal()])
+
+    if aciss_limit:
+
+        # Draw ACIS-S limit line.
+        acisslimitline = ax1.plot(ax1.get_xlim(), [aciss_limit, aciss_limit], '-.',
+                                  color='purple', linewidth=1.5)
+
+        ylim1 = ax1.get_ylim()
+
+        xlim1 = ax1.get_xlim()
+        plx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
+        ply = 0.01 * (ylim1[1] - ylim1[0]) + aciss_limit
+        txt = ax1.text(plx, ply, 'ACIS-S Limit = {:4.1f} {}'.format(aciss_limit, units),
+                       ha="left", va="bottom", fontsize=14)
+        txt.set_path_effects([path_effects.Stroke(linewidth=4, foreground='white', alpha=1.0),
+                              path_effects.Normal()])
+
+    if fp_sens_limit:
+
+        # Draw FP SENS limit line.
+        fpsenslimitline = ax1.plot(ax1.get_xlim(), [fp_sens_limit, fp_sens_limit], '--',
+                                   color='red', linewidth=1.5)
+
+        ylim1 = ax1.get_ylim()
+
+        xlim1 = ax1.get_xlim()
+        plx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
+        ply = 0.01 * (ylim1[1] - ylim1[0]) + fp_sens_limit
+        txt = ax1.text(plx, ply, 'FP SENS Limit = {:4.1f} {}'.format(fp_sens_limit, units),
+                       ha="left", va="bottom", fontsize=14)
+        txt.set_path_effects([path_effects.Stroke(linewidth=4, foreground='white', alpha=1.0),
+                              path_effects.Normal()])
 
     # ---------------------------------------------------------------------------------------------
     # Axis 2 - Model Error vs Time
@@ -291,6 +344,39 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     ylim3 = ax3.get_ylim()
 
     ax3.set_xticklabels(ax3.get_xticks(), fontsize=14)
+
+    xlim3 = ax3.get_xlim()
+
+    if cautionhigh:
+
+        # Draw caution high limit line.
+        dt = 0.05 * np.diff(ax1.get_ylim())
+        yellowlimitline3 = ax3.plot(xlim3, [cautionhigh, cautionhigh], 'orange', linewidth=1.5)
+        if ylim3[1] <= cautionhigh:
+            ax3.set_ylim(ylim3[0], cautionhigh + 1)
+            ax3.set_yticklabels(ax3.get_yticks(), fontsize=18)
+
+    if planninglimit:
+        # Draw planning limit line.
+        planninglimitline3 = ax3.plot(xlim3, [planninglimit, planninglimit], 'g--', linewidth=1.5)
+
+    if acisi_limit:
+
+        # Draw ACIS-I limit line.
+        acisilimitline = ax3.plot(xlim3, [acisi_limit, acisi_limit], 'b-.',
+                                  linewidth=1.5)
+
+    if aciss_limit:
+
+        # Draw ACIS-S limit line.
+        acisslimitline = ax3.plot(xlim3, [aciss_limit, aciss_limit], '-.',
+                                  color='purple', linewidth=1.5)
+
+    if fp_sens_limit:
+
+        # Draw FP SENS limit line.
+        fpsenslimitline = ax3.plot(xlim3, [fp_sens_limit, fp_sens_limit], '--',
+                                   color='red', linewidth=1.5)
 
     # Plot quantile lines for each count value
     Epoints01, Tpoints01 = getQuantPlotPoints(quantstats, 'q01')
