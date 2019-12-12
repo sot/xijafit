@@ -94,7 +94,7 @@ class CalcStat(object):
 
 
 class XijaFit(object):
-    def __init__(self, modelobject, days=180, stop=None, start=None, set_data_exprs=None,
+    def __init__(self, modelobject, days=180, stop=None, start=None, set_data_exprs=None, set_data=None,
                  inherit_from=None, keep_epoch=False, quiet=False, name=None, snapshotfile=None):
         """Initialize XijaFit class.
 
@@ -102,6 +102,7 @@ class XijaFit(object):
         :param days: Number of days of data to use to fit the model
         :param stop: Stop date for model fit duration
         :param set_data_exprs: Iterable of initial data values in the format: '<comp_name>=<value>'
+        :param set_data: Dictionary of initialization parameters in the format: {<comp_name>=<value(s)>}
         :param inherit_from: Full path of file containing parameters to inherit
         :param keep_epoch: Maintain epoch in SolarHeat models (default=recenter on fit interval)
         :param quiet: Suppress screen output
@@ -127,7 +128,6 @@ class XijaFit(object):
         sformatter = logging.Formatter('[%(levelname)s] (%(processName)-10s) %(message)s')
         sch.setFormatter(sformatter)
         self.sherpa_logger.addHandler(sch)
-
 
         # Set initial times.
         if stop and not start:
@@ -155,6 +155,13 @@ class XijaFit(object):
         self.set_data_exprs = set_data_exprs
         if self.set_data_exprs:
             self.set_init_data(set_data_exprs)
+
+        if set_data:
+            for key, value in set_data.items():
+                if isinstance(value, dict):
+                    self.model.comp[key].set_data(value['data'], value['times'])
+                else:
+                    self.model.comp[key].set_data(value)
 
         # "make" model.
         self.model.make()
