@@ -102,7 +102,8 @@ class XijaFit(object):
         :param days: Number of days of data to use to fit the model
         :param stop: Stop date for model fit duration
         :param set_data_exprs: Iterable of initial data values in the format: '<comp_name>=<value>'
-        :param set_data: Dictionary of initialization parameters in the format: {<comp_name>=<value(s)>}
+        :param set_data: Dictionary of initialization parameters in one of the following formats: 
+            {<comp_name>: <value>} or {<comp_name>: {'times':<times>, 'data':<value>}}
         :param inherit_from: Full path of file containing parameters to inherit
         :param keep_epoch: Maintain epoch in SolarHeat models (default=recenter on fit interval)
         :param quiet: Suppress screen output
