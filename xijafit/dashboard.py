@@ -105,7 +105,7 @@ def digitize_data(Ttelem, nbins=50):
 
 
 def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
-              errorplotlimits=None, yplotlimits=None, fig=None, savefig=True):
+              errorplotlimits=None, yplotlimits=None, fig=None, savefig=True, legend_loc='best'):
     """ Plot Xija model dashboard.
 
     :param prediction: model prediction
@@ -117,6 +117,11 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     :param msid: msid name (e.g. "aacccdpt")
     :param errorplotlimits: list or tuple of min and max x axis plot boundaries for both righthand
            plots
+    :param yplotlimits: Y axis plot limits to be used where appropriate, if not None
+    :param fig:  Figure object to use, if None, a new figure object is generated
+    :param savefig: Boolean indicated whether or not to save the plot to an image file
+    :param legend_loc: value to be passed to the 'loc' keyword in the  matplotlib pyplot legend
+           method, if None, then no legend is displayed
 
     Note: prediction, tlm, and times must all have the same number of values.
 
@@ -166,8 +171,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     #
 
     ax1 = fig.add_axes([0.1, 0.38, 0.44, 0.50], frameon=True)
-    ax1.plot(times, prediction, color='#d92121', linewidth=1, label='Model')
-    ax1.plot(times, tlm, color='#386cb0', linewidth=1.5, label='Telemetry')
+    pred_line = ax1.plot(times, prediction, color='#d92121', linewidth=1, label='Model')
+    telem_line = ax1.plot(times, tlm, color='#386cb0', linewidth=1.5, label='Telemetry')
     ax1.set_title('%s Temperature (%s)' % (modelname.replace('_', ' '), msid.upper()),
                   fontsize=18, y=1.00)
     ax1.set_ylabel('Temperature deg%s' % units, fontsize=18)
@@ -286,6 +291,11 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
                        ha="left", va="bottom", fontsize=14)
         txt.set_path_effects([path_effects.Stroke(linewidth=4, foreground='white', alpha=1.0),
                               path_effects.Normal()])
+
+    if legend_loc is not None:
+        lns = pred_line + telem_line
+        labs = [l.get_label() for l in lns]
+        plt.legend(lns, labs, loc=legend_loc)
 
     # ---------------------------------------------------------------------------------------------
     # Axis 2 - Model Error vs Time
