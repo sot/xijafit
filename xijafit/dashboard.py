@@ -146,6 +146,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
     units = limits['units']
     cautionhigh = limits.get('caution_high', None)
+    cautionlow = limits.get('caution_low', None)
     planninglimit = limits.get('planning_limit', None)
     acisi_limit = limits.get('acisi_limit', None)
     aciss_limit = limits.get('aciss_limit', None)
@@ -212,6 +213,35 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
                        path_effects.Normal()])
 
         txt.set_bbox(dict(color='white', alpha=0))
+
+    if cautionlow:
+
+        # Draw caution high limit line.
+        ylim1 = ax1.get_ylim()
+        # dy = ylim1[1] - ylim1[0]
+        # if ylim1[0] + 2 <= cautionlow:
+        #     ax1.set_ylim(cautionlow - dy/7., ylim1[1])
+        #     ax1.set_yticklabels(ax1.get_yticks(), fontsize=14)
+        # ylim1 = ax1.get_ylim()
+        yellowlimitline_low = ax1.plot(ax1.get_xlim(), [cautionlow, cautionlow], 'orange',
+                                   linewidth=1.5)
+        if ylim1[0] >= cautionlow:
+            ax1.set_ylim(cautionlow - 1, ylim1[1])
+
+        # Print caution high limit value (remember plot is 50% of fig height).
+        #chfig = 0.50 * (cautionhigh - ylim1[0]) / (np.diff(ylim1)) + 0.38
+        #txt = fig.text(0.11, chfig - 0.000, 'Caution High (Yellow) = {:4.1f} {}'.format(
+        #    cautionhigh, units), ha="left", va="bottom", size=18)
+        #txt.set_bbox(dict(color='white', alpha=0.8))
+        xlim1 = ax1.get_xlim()
+        chx_low = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
+        chy_low = cautionlow - 0.01 * (ylim1[1] - ylim1[0])
+        txt_low = ax1.text(chx_low, chy_low, 'Caution Low (Yellow) = {:4.1f} {}'.format(cautionlow, units),
+                ha="left", va="top", fontsize=12)
+        txt_low.set_path_effects([path_effects.Stroke(linewidth=3, foreground='white', alpha=0.7),
+                       path_effects.Normal()])
+
+        txt_low.set_bbox(dict(color='white', alpha=0))
 
     if planninglimit:
 
@@ -365,6 +395,15 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
         if ylim3[1] <= cautionhigh:
             ax3.set_ylim(ylim3[0], cautionhigh + 1)
             ax3.set_yticklabels(ax3.get_yticks(), fontsize=18)
+
+    if cautionlow:
+
+        # Draw caution high limit line.
+        dt = 0.05 * np.diff(ax1.get_ylim())
+        yellowlimitline3_low = ax3.plot(xlim3, [cautionlow, cautionlow], 'orange', linewidth=1.5)
+        # if ylim3[0] >= cautionlow:
+        #     ax3.set_ylim(cautionlow - 1, ylim3[1])
+        #     ax3.set_yticklabels(ax3.get_yticks(), fontsize=18)
 
     if planninglimit:
         # Draw planning limit line.
