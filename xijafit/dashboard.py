@@ -137,7 +137,12 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     else:
         quantstats = calcquantstats(tlm, error)
 
-    units = limits['unit']
+    if 'units' in limits:
+        units = limits['units']
+    elif 'unit' in limits:
+        units = limits['unit']
+    else:
+        units = "C"
 
     startsec = DateTime(times[0]).secs
     stopsec = DateTime(times[-1]).secs
