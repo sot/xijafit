@@ -109,8 +109,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     :param prediction: model prediction
     :param tlm: telemetry 
     :param times: model/telemetry time values
-    :param limits: model limit dict, (e.g. {"units":"C", "caution_high":-12.0,
-                                            "planning_limit":-14.0})
+    :param limits: model limit dict, (e.g. {"units":"C", "odb.caution.high":-12.0,
+                                            "odb.warning.high":-14.0})
     :param modelname: Name of model (e.g. "ACA")
     :param msid: msid name (e.g. "aacccdpt")
     :param errorplotlimits: list or tuple of min and max x axis plot boundaries for both righthand
