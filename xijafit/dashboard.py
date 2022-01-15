@@ -103,7 +103,7 @@ def digitize_data(Ttelem, nbins=50):
 
 
 def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
-              errorplotlimits=None, yplotlimits=None, fig=None, savefig=True):
+              errorplotlimits=None, yplotlimits=None, fig=None, savefig=True, legend_loc='best'):
     """ Plot Xija model dashboard.
 
     :param prediction: model prediction
@@ -114,7 +114,13 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     :param modelname: Name of model (e.g. "ACA")
     :param msid: msid name (e.g. "aacccdpt")
     :param errorplotlimits: list or tuple of min and max x axis plot boundaries for both righthand
-           plots
+           plots (optional)
+    :param yplotlimits: list or tuple of min and max y axis plot boundaries for both top half
+           plots (optional)
+    :param fig:  Figure object to use, if None, a new figure object is generated (optional)
+    :param savefig: Option to automatically save the figure image (optional)
+    :param legend_loc: value to be passed to the 'loc' keyword in the  matplotlib pyplot legend
+           method, if None, then no legend is displayed (optional)
 
     Note: prediction, tlm, and times must all have the same number of values.
 
@@ -164,8 +170,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     #
 
     ax1 = fig.add_axes([0.1, 0.38, 0.44, 0.50], frameon=True)
-    ax1.plot(times, prediction, color='#d92121', linewidth=1, label='Model')
-    ax1.plot(times, tlm, color='#386cb0', linewidth=1.5, label='Telemetry')
+    pred_line = ax1.plot(times, prediction, color='#d92121', linewidth=1, label='Model')
+    telem_line = ax1.plot(times, tlm, color='#386cb0', linewidth=1.5, label='Telemetry')
     ax1.set_title('%s Temperature (%s)' % (modelname.replace('_', ' '), msid.upper()),
                   fontsize=18, y=1.00)
     ax1.set_ylabel('Temperature deg%s' % units, fontsize=18)
@@ -188,11 +194,11 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
         dy = ymax1-ymin1
 
         # skip over the unit entry and don't plot red limits
-        if name == "unit" or name.startswith("odb.warning"):
+        if "unit" in name.lower() or name.startswith("odb.warning"):
             continue
 
-        # if a limit is extreme compared to the available data, skip over it
-        if value < ylim1[0] - 10 or value > ylim1[1] + 10:
+        # if a limit is extreme compared to the available data or no value is entered, skip over it
+        if value is None or value < ylim1[0] - 10 or value > ylim1[1] + 10:
             continue
 
         ax1.axhline(value, color=get_limit_color(name), linewidth=1.5)
@@ -213,9 +219,15 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
             display_name = name
 
         plx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
-        ply = 0.01 * (ylim1[1] - ylim1[0]) + value
-        txt = ax1.text(plx, ply, f'{display_name} = {value:4.1f} {units}',
-                       ha="left", va="bottom", fontsize=14)
+
+        if "low" in name.lower():
+            ply = value - 0.01 * (ylim1[1] - ylim1[0])
+            txt = ax1.text(plx, ply, f'{display_name} = {value:4.1f} {units}',
+                           ha="left", va="top", fontsize=12)
+        else:
+            ply = 0.01 * (ylim1[1] - ylim1[0]) + value
+            txt = ax1.text(plx, ply, f'{display_name} = {value:4.1f} {units}',
+                           ha="left", va="bottom", fontsize=12)
         txt.set_path_effects(
             [path_effects.Stroke(linewidth=4, foreground='white', alpha=1.0),
              path_effects.Normal()]
@@ -230,6 +242,10 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
     ax1.set_ylim(ymin1, ymax1)
 
+    if legend_loc is not None:
+        lns = pred_line + telem_line
+        labs = [l.get_label() for l in lns]
+        plt.legend(lns, labs, loc=legend_loc)
     # ---------------------------------------------------------------------------------------------
     # Axis 2 - Model Error vs Time
     #
@@ -288,11 +304,11 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
     for name, value in limits.items():
         # skip over the unit entry and don't plot red limits
-        if name == "unit" or name.startswith("odb.warning"):
+        if "unit" in name.lower() or name.startswith("odb.warning"):
             continue
 
-        # if a limit is extreme compared to the available data, skip over it
-        if value < ylim1[0] - 10 or value > ylim1[1] + 10:
+        # if a limit is extreme compared to the available data or no value is entered, skip over it
+        if value is None or value < ylim1[0] - 10 or value > ylim1[1] + 10:
             continue
         ax3.axhline(value, color=get_limit_color(name), linewidth=1.5)
 
