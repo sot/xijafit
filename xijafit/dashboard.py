@@ -206,7 +206,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
         limit = get_limit_spec(name)
 
         qualifier = str(limit["qualifier"])
-        if (qualifier == "acisi") or (qualifier == "aciss") or (qualifier == "aciss_hot"):
+        if qualifier in ["acisi", "aciss", "aciss_hot"]:
             # These limits are grouped later for a combined label
             display_name = ""
             acis_limit_catch.append(value)
