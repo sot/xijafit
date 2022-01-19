@@ -189,8 +189,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     ymin1 = ylim1[0]
     ymax1 = ylim1[1]
 
+    acis_limit_catch = []
     for name, value in limits.items():
-
         dy = ymax1-ymin1
 
         # skip over the unit entry and don't plot red limits
@@ -205,11 +205,16 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
         limit = get_limit_spec(name)
 
-        if "acis" in str(limit["qualifier"]):
-            instr = f"{limit['qualifier'][:4]}-{limit['qualifier'][4]}".upper()
-            hot = " Hot" if limit["qualifier"].endswith("hot") else ""
+        qualifier = str(limit["qualifier"])
+        if (qualifier == "acisi") or (qualifier == "aciss") or (qualifier == "aciss_hot"):
+            # These limits are grouped later for a combined label
+            display_name = ""
+            acis_limit_catch.append(value)
+        elif "acis" in qualifier:
+            instr = f"{qualifier[:4]}-{qualifier[4]}".upper()
+            hot = " Hot" if qualifier.endswith("hot") else ""
             display_name = f"{instr}{hot} Limit"
-        elif "cold_ecs" in str(limit["qualifier"]):
+        elif "cold_ecs" in qualifier:
             display_name = "Cold ECS Limit"
         elif limit["system"] == "planning":
             display_name = f"Planning {limit['direction'].capitalize()}"
@@ -218,27 +223,40 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
         else:
             display_name = name
 
-        plx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
-
-        if "low" in name.lower():
-            ply = value - 0.01 * (ylim1[1] - ylim1[0])
-            txt = ax1.text(plx, ply, f'{display_name} = {value:4.1f} {units}',
-                           ha="left", va="top", fontsize=12)
-        else:
-            ply = 0.01 * (ylim1[1] - ylim1[0]) + value
-            txt = ax1.text(plx, ply, f'{display_name} = {value:4.1f} {units}',
-                           ha="left", va="bottom", fontsize=12)
-        txt.set_path_effects(
-            [path_effects.Stroke(linewidth=4, foreground='white', alpha=1.0),
-             path_effects.Normal()]
-        )
-
-        txt.set_bbox(dict(color='white', alpha=0))
+        if len(display_name) > 0:
+            plx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
+            if "low" in name.lower():
+                ply = value - 0.01 * (ylim1[1] - ylim1[0])
+                txt = ax1.text(plx, ply, f'{display_name} = {value:4.1f} {units}',
+                               ha="left", va="top", fontsize=12)
+            else:
+                ply = 0.01 * (ylim1[1] - ylim1[0]) + value
+                txt = ax1.text(plx, ply, f'{display_name} = {value:4.1f} {units}',
+                               ha="left", va="bottom", fontsize=12)
+            txt.set_path_effects(
+                [path_effects.Stroke(linewidth=4, foreground='white', alpha=1.0),
+                 path_effects.Normal()]
+            )
+            txt.set_bbox(dict(color='white', alpha=0))
 
         if value < ymin1:
             ymin1 = value-0.1*dy
         if value > ymax1:
             ymax1 = value+0.1*dy
+
+    # Plot the labels for the ACIS Science Limits, this avoids individual labels that clobber each
+    # other.
+    if len(acis_limit_catch) > 0:
+        acis_lims_str = ", ".join([str(val) for val in acis_limit_catch])
+        plx = 0.02 * (xlim1[1] - xlim1[0]) + xlim1[0]
+        ply = 0.01 * (ylim1[1] - ylim1[0]) + max(acis_limit_catch)
+        txt = ax1.text(plx, ply, f'ACIS FP Science Limits ({acis_lims_str}, {units})',
+                       ha="left", va="bottom", fontsize=12)
+        txt.set_path_effects(
+            [path_effects.Stroke(linewidth=4, foreground='white', alpha=1.0),
+             path_effects.Normal()]
+        )
+        txt.set_bbox(dict(color='white', alpha=0))
 
     ax1.set_ylim(ymin1, ymax1)
 
@@ -284,7 +302,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     noise = np.random.uniform(-band, band, len(tlm))
 
     ax3 = fig.add_axes([0.62, 0.38, 0.36, 0.50], frameon=True)
-    ax3.plot(error, tlm + noise, 'o', color='#386cb0', alpha=1, markersize=2, markeredgecolor='#386cb0')
+    ax3.plot(error, tlm + noise, 'o', color='#386cb0', alpha=1, markersize=2,
+             markeredgecolor='#386cb0')
     ax3.set_title('%s Telemetry \n vs. Model Error'
                   % modelname.replace('_', ' '), fontsize=18, y=1.00)
     ax3.set_ylabel('Temperature %s' % units, fontsize=18)
