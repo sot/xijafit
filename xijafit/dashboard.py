@@ -177,7 +177,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     ax1.set_ylabel('Temperature deg%s' % units, fontsize=18)
     if yplotlimits is not None:
         ax1.set_ylim(yplotlimits)
-    ax1.set_yticklabels(ax1.get_yticks(), fontsize=14)
+    ax1.tick_params(axis='y', labelsize=14)
     ax1.set_xticks(xtick)
     ax1.set_xticklabels('')
     ax1.set_xlim(xtick[0] - 10, times[-1])
@@ -278,7 +278,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     ax2.set_title('%s Model Error (Telemetry - Model)' % modelname.replace('_', ' '),
                   fontsize=18, y=1.00)
     ax2.set_ylabel('Error deg%s' % units, fontsize=18)
-    ax2.set_yticklabels(ax2.get_yticks(), fontsize=14)
+    ax2.tick_params(axis='y', labelsize=14)
     # ax2.tick_params(axis='x', which='major', pad=1)
     ax2.set_xticks(xtick)
     ax2.set_xticklabels(xlab, fontsize=14, rotation=30, ha='right')
@@ -317,9 +317,9 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
     ax3.set_ylim(ax1.get_ylim())
     ax3.set_yticks(ax1.get_yticks())
-    ax3.set_yticklabels(ax1.get_yticks(), fontsize=14)
+    ax3.tick_params(axis='y', labelsize=14)
 
-    ax3.set_xticklabels(ax3.get_xticks(), fontsize=14)
+    ax3.tick_params(axis='x', labelsize=14)
 
     for name, value in limits.items():
         # skip over the unit entry and don't plot red limits
@@ -370,6 +370,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
     # Plot lines for statistical boundaries.
     ylim4 = ax4.get_ylim()
+
+    ax4.set_yticks(ytick4)
     ax4.set_yticklabels(['%2.0f%%' % (100 * n / len(prediction)) for n in ytick4], fontsize=14)
     ax4.plot([stats['q01'], stats['q01'] + 1e-6], ylim4, color=[.5, .5, .5], linestyle='--',
              linewidth=1.5, alpha=1)
@@ -402,7 +404,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     xlimright = [min(xlim3[0], xlim4[0]), max(xlim3[1], xlim4[1])]
     ax4.set_ylim(ylim4)
     ax4.set_xlim(xlimright)
-    ax4.set_xticklabels(ax4.get_xticks(), fontsize=14)
+    ax4.tick_params(axis='x', labelsize=14)
 
     # I know the following code looks to be redundant and unnecessary, but for some unholy reason,
     # Matplotlib REALLY does not want the top two axes to share the same Y scale. The following
