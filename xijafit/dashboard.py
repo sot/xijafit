@@ -26,8 +26,8 @@ def getQuantPlotPoints(quantstats, quantile):
 
     """
 
-    Tset = [T for (n, T) in quantstats['key']]
-    diffTset = np.diff(Tset)
+    Tset = [T for (n, T) in quantstats['key']] # Set of temperature values in order
+    diffTset = np.diff(Tset) # deltas
     Tpoints = Tset[:-1] + diffTset / 2
     Tpoints = list(np.array([Tpoints, Tpoints]).T.flatten())
     Tpoints.insert(0, Tset[0] - diffTset[0] / 2)
@@ -58,10 +58,10 @@ def calcquantiles(errors):
     return stats
 
 
-def calcquantstats(Ttelem, error):
+def calcquantstats(T_telem, error, T_band=None):
     """ Calculate error quantiles for individual telemetry temperatures (each count individually).
 
-    :param Ttelem: telemetry values
+    :param T_telem: telemetry values
     :param error: model error (telemetry - model)
     :returns: coordinates for error quantile line
 
@@ -69,24 +69,31 @@ def calcquantstats(Ttelem, error):
 
     """
 
-    Tset = np.sort(list(set(Ttelem)))
+    if T_band is None:
+        Tset = np.sort(list(set(T_telem)))
+        T_band = np.min(np.diff(Tset)) / 2
+    else:
+        range = max(T_telem) - min(T_telem)
+        num = int(np.ceil(range / T_band))
+        Tset = np.linspace(min(T_telem), max(T_telem) + T_band, int(num))
+
     Tquant = {'key': []}
     k = -1
     for T in Tset:
-        if len(Ttelem[Ttelem == T]) >= 200:
+        ind = (T_telem > (T - T_band)) & (T_telem < (T + T_band))
+        if sum(ind) >= 20:
             k = k + 1
             Tquant['key'].append([k, T])
-            ind = Ttelem == T
             errvals = error[ind]
             Tquant[k] = calcquantiles(errvals)
 
     return Tquant
 
 
-def digitize_data(Ttelem, nbins=50):
+def digitize_data(T_telem, nbins=50):
     """ Digitize telemetry.
 
-    :param Ttelem: telemetry values
+    :param T_telem: telemetry values
     :param nbins: number of bins
     :returns: coordinates for error quantile line
 
@@ -95,15 +102,15 @@ def digitize_data(Ttelem, nbins=50):
     # Bin boundaries
     # Note that the min/max range is expanded to keep all telemetry within the outer boundaries.
     # Also the number of boundaries is 1 more than the number of bins.
-    bins = np.linspace(min(Ttelem) - 1e-6, max(Ttelem) + 1e-6, nbins + 1)
-    inds = np.digitize(Ttelem, bins) - 1
+    bins = np.linspace(min(T_telem) - 1e-6, max(T_telem) + 1e-6, nbins + 1)
+    inds = np.digitize(T_telem, bins) - 1
     means = bins[:-1] + np.diff(bins) / 2
 
     return np.array([means[i] for i in inds])
 
 
 def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
-              errorplotlimits=None, yplotlimits=None, fig=None, savefig=True, legend_loc='best'):
+              errorplotlimits=None, yplotlimits=None, T_band=None, fig=None, savefig=True, legend_loc='best'):
     """ Plot Xija model dashboard.
 
     :param prediction: model prediction
@@ -139,9 +146,9 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     # many possible values to work with calcquantstats(), such as with tlm_fep1_mong.
     if len(np.sort(list(set(tlm)))) > 1000:
         quantized_tlm = digitize_data(tlm)
-        quantstats = calcquantstats(quantized_tlm, error)
+        quantstats = calcquantstats(quantized_tlm, error, T_band=T_band)
     else:
-        quantstats = calcquantstats(tlm, error)
+        quantstats = calcquantstats(tlm, error, T_band=T_band)
 
     if 'units' in limits:
         units = limits['units']
@@ -174,7 +181,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     telem_line = ax1.plot(times, tlm, color='#386cb0', linewidth=1.5, label='Telemetry')
     ax1.set_title('%s Temperature (%s)' % (modelname.replace('_', ' '), msid.upper()),
                   fontsize=18, y=1.00)
-    ax1.set_ylabel('Temperature deg%s' % units, fontsize=18)
+    ax1.set_ylabel('Temperature %s' % units, fontsize=18)
     if yplotlimits is not None:
         ax1.set_ylim(yplotlimits)
     ax1.tick_params(axis='y', labelsize=14)
@@ -277,7 +284,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
     ax2.set_title('%s Model Error (Telemetry - Model)' % modelname.replace('_', ' '),
                   fontsize=18, y=1.00)
-    ax2.set_ylabel('Error deg%s' % units, fontsize=18)
+    ax2.set_ylabel('Error %s' % units, fontsize=18)
     ax2.tick_params(axis='y', labelsize=14)
     # ax2.tick_params(axis='x', which='major', pad=1)
     ax2.set_xticks(xtick)
@@ -373,31 +380,55 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
 
     ax4.set_yticks(ytick4)
     ax4.set_yticklabels(['%2.0f%%' % (100 * n / len(prediction)) for n in ytick4], fontsize=14)
-    ax4.plot([stats['q01'], stats['q01'] + 1e-6], ylim4, color=[.5, .5, .5], linestyle='--',
-             linewidth=1.5, alpha=1)
-    ax4.plot([stats['q99'], stats['q99'] + 1e-6], ylim4, color=[.5, .5, .5], linestyle='--',
-             linewidth=1.5, alpha=1)
-    ax4.plot([np.min(error), np.min(error) + 1e-6], ylim4, color=[.5, .5, .5], linestyle='--',
-             linewidth=1.5, alpha=1)
-    ax4.plot([np.max(error), np.max(error) + 1e-6], ylim4, color=[.5, .5, .5], linestyle='--',
-             linewidth=1.5, alpha=1)
-    ax4.set_xlabel('Error deg%s' % units, fontsize=18)
+    ax4.set_xlabel('Error %s' % units, fontsize=18)
 
-    # Print labels for statistical boundaries.
+    # Print lines and labels for statistical information.
     ystart = (ylim4[1] + ylim4[0]) * 0.5
     xoffset = -(.2 / 25) * np.abs(np.diff(ax4.get_xlim()))
-    ptext4a = ax4.text(stats['q01'] + xoffset * 1.1, ystart, '1% Quantile', ha="right",
-                       va="center", rotation=90, size=14)
+    unit_char = 'F' if 'f' in units.lower() else 'C'
 
-    if np.min(error) > ax4.get_xlim()[0]:
-        ptext4b = ax4.text(np.min(error) + xoffset * 1.1, ystart, 'Minimum Error', ha="right",
-                           va="center", rotation=90, size=14)
-    ptext4c = ax4.text(stats['q99'] - xoffset * 0.9, ystart, '99% Quantile', ha="left",
-                       va="center", rotation=90, size=14)
+    ax4.axvline(stats['q50'], color=[.5, .5, .5], linestyle='--', linewidth=1.5, alpha=1)
+    _ = ax4.text(stats['q50'] + xoffset * 1.1, ystart, f'50% {stats["q50"]:4.1f}{unit_char}', ha="right",
+                 va="center", rotation=90, size=14)
+    _.set_path_effects(
+        [path_effects.Stroke(linewidth=4, foreground='white', alpha=0.75), path_effects.Normal()]
+    )
 
-    if np.max(error) < ax4.get_xlim()[1]:
-        ptext4d = ax4.text(np.max(error) - xoffset * 0.9, ystart, 'Maximum Error', ha="left",
-                           va="center", rotation=90, size=14)
+    if stats["q01"] > ax4.get_xlim()[0]:
+        ax4.axvline(stats['q01'], color=[.5, .5, .5], linestyle='--', linewidth=1.5, alpha=1)
+        _ = ax4.text(stats['q01'] + xoffset * 1.1, ystart, f'1% {stats["q01"]:4.1f}{unit_char}', ha="right",
+                     va="center", rotation=90, size=14)
+        _.set_path_effects([path_effects.Stroke(linewidth=4, foreground='white', alpha=0.75), path_effects.Normal()])
+
+    if stats["q16"] > ax4.get_xlim()[0]:
+        ax4.axvline(stats['q16'], color=[.5, .5, .5], linestyle='--', linewidth=1.5, alpha=1)
+        _ = ax4.text(stats['q16'] + xoffset * 1.1, ystart, f'16% {stats["q16"]:4.1f}{unit_char}', ha="right",
+                     va="center", rotation=90, size=14)
+        _.set_path_effects([path_effects.Stroke(linewidth=4, foreground='white', alpha=0.75), path_effects.Normal()])
+
+    if np.min(error) > (ax4.get_xlim()[0] + 1): # Avoid printing max data at plot boundary
+        ax4.axvline(np.min(error), color=[.5, .5, .5], linestyle='--', linewidth=1.5, alpha=1)
+        _ = ax4.text(np.min(error) + xoffset * 1.1, ystart, 'Minimum Error', ha="right",
+                     va="center", rotation=90, size=14)
+        _.set_path_effects([path_effects.Stroke(linewidth=4, foreground='white', alpha=0.75), path_effects.Normal()])
+
+    if stats['q99'] < ax4.get_xlim()[1]:
+        ax4.axvline(stats['q99'], color=[.5, .5, .5], linestyle='--', linewidth=1.5, alpha=1)
+        _ = ax4.text(stats['q99'] - xoffset * 0.9, ystart, f'99% {stats["q99"]:4.1f}{unit_char}', ha="left",
+                     va="center", rotation=90, size=14)
+        _.set_path_effects([path_effects.Stroke(linewidth=4, foreground='white', alpha=0.75), path_effects.Normal()])
+
+    if stats['q84'] < ax4.get_xlim()[1]:
+        ax4.axvline(stats['q84'], color=[.5, .5, .5], linestyle='--', linewidth=1.5, alpha=1)
+        _ = ax4.text(stats['q84'] - xoffset * 0.9, ystart, f'84% {stats["q84"]:4.1f}{unit_char}', ha="left",
+                     va="center", rotation=90, size=14)
+        _.set_path_effects([path_effects.Stroke(linewidth=4, foreground='white', alpha=0.75), path_effects.Normal()])
+
+    if np.max(error) < (ax4.get_xlim()[1] - 1): # Avoid printing max data at plot boundary
+        ax4.axvline(np.max(error), color=[.5, .5, .5], linestyle='--', linewidth=1.5, alpha=1)
+        _ = ax4.text(np.max(error) - xoffset * 0.9, ystart, 'Maximum Error', ha="left",
+                     va="center", rotation=90, size=14)
+        _.set_path_effects([path_effects.Stroke(linewidth=4, foreground='white', alpha=0.75), path_effects.Normal()])
 
     xlim4 = ax4.get_xlim()
 
