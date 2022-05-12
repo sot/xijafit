@@ -58,7 +58,7 @@ def calcquantiles(errors):
     return stats
 
 
-def calcquantstats(T_telem, error, T_band=None):
+def calcquantstats(T_telem, error, bin_size=None):
     """ Calculate error quantiles for individual telemetry temperatures (each count individually).
 
     :param T_telem: telemetry values
@@ -68,19 +68,25 @@ def calcquantstats(T_telem, error, T_band=None):
     This is used for the telemetry vs. error plot (axis 3).
 
     """
-
-    if T_band is None:
-        Tset = np.sort(list(set(T_telem)))
-        T_band = np.min(np.diff(Tset)) / 2
-    else:
-        range = max(T_telem) - min(T_telem)
-        num = int(np.ceil(range / T_band))
-        Tset = np.linspace(min(T_telem), max(T_telem) + T_band, int(num))
+    
+    def calc_ind(T, T_telem, band=None):
+        if band is None:
+            return T_telem == T
+        else:
+            return (T_telem > (T - band)) & (T_telem < (T + band))
 
     Tquant = {'key': []}
     k = -1
+
+    if bin_size is None:
+        Tset = np.sort(list(set(T_telem)))
+    else:
+        range = max(T_telem) - min(T_telem)
+        num = int(np.ceil(range / bin_size))
+        Tset = np.linspace(min(T_telem), max(T_telem) + bin_size, int(num))
+        
     for T in Tset:
-        ind = (T_telem > (T - T_band)) & (T_telem < (T + T_band))
+        ind = calc_ind(T, T_telem, band=bin_size)
         if sum(ind) >= 20:
             k = k + 1
             Tquant['key'].append([k, T])
@@ -110,7 +116,7 @@ def digitize_data(T_telem, nbins=50):
 
 
 def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
-              errorplotlimits=None, yplotlimits=None, T_band=None, fig=None, savefig=True, legend_loc='best'):
+              errorplotlimits=None, yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best'):
     """ Plot Xija model dashboard.
 
     :param prediction: model prediction
@@ -124,6 +130,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
            plots (optional)
     :param yplotlimits: list or tuple of min and max y axis plot boundaries for both top half
            plots (optional)
+    :param bin_size: int or float of desired bin size for 1% and 99% quantile calculations for scatter plot,
+           defaults to using telemetry count values if bin_size is left as None (optional)
     :param fig:  Figure object to use, if None, a new figure object is generated (optional)
     :param savefig: Option to automatically save the figure image (optional)
     :param legend_loc: value to be passed to the 'loc' keyword in the  matplotlib pyplot legend
@@ -134,8 +142,6 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     """
 
     # Set some plot characteristic default values
-    # matplotlib.rcParams['xtick.major.pad'] = 10
-    # matplotlib.rcParams['ytick.major.pad'] = 5
     matplotlib.rc('font', family='sans-serif')
     matplotlib.rc('font', weight='light')
 
@@ -146,9 +152,9 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
     # many possible values to work with calcquantstats(), such as with tlm_fep1_mong.
     if len(np.sort(list(set(tlm)))) > 1000:
         quantized_tlm = digitize_data(tlm)
-        quantstats = calcquantstats(quantized_tlm, error, T_band=T_band)
+        quantstats = calcquantstats(quantized_tlm, error, bin_size=bin_size)
     else:
-        quantstats = calcquantstats(tlm, error, T_band=T_band)
+        quantstats = calcquantstats(tlm, error, bin_size=bin_size)
 
     if 'units' in limits:
         units = limits['units']
