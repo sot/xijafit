@@ -186,8 +186,23 @@ def run_model(msid, t0, t1, model_spec_file, init={}):
 
 def watermarked_dashboard(model_spec_file, t0, t1, modelname='PSMC', msid='1pdeaat', errorplotlimits=None,
                           yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best'):
-    """
+    """ Generate a watermarked Xija model dashboard
 
+    :param model_spec_file: File location for Xija model definition
+    :param t0: Start Time (seconds or HOSC date string)
+    :param t1: Stop Time (seconds or HOSC date string)
+    :param modelname: Name of model (e.g. "ACA")
+    :param msid: msid name (e.g. "aacccdpt")
+    :param errorplotlimits: list or tuple of min and max x axis plot boundaries for both righthand
+           plots (optional)
+    :param yplotlimits: list or tuple of min and max y axis plot boundaries for both top half
+           plots (optional)
+    :param bin_size: int or float of desired bin size for 1% and 99% quantile calculations for scatter plot,
+           defaults to using telemetry count values if bin_size is left as None (optional)
+    :param fig:  Figure object to use, if None, a new figure object is generated (optional)
+    :param savefig: Option to automatically save the figure image (optional)
+    :param legend_loc: value to be passed to the 'loc' keyword in the  matplotlib pyplot legend
+           method, if None, then no legend is displayed (optional)
     """
 
     model_object, md5_hash = run_model(msid, t0, t1, model_spec_file, init={})
@@ -203,11 +218,11 @@ def watermarked_dashboard(model_spec_file, t0, t1, modelname='PSMC', msid='1pdea
 
     dashboard(prediction, telem, times, model_limits, modelname=modelname, msid=msid, errorplotlimits=errorplotlimits,
               yplotlimits=yplotlimits, bin_size=bin_size, fig=fig, savefig=savefig, legend_loc=legend_loc,
-              watermark=md5_hash)
+              md5_string=md5_hash)
 
 
 def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', errorplotlimits=None, yplotlimits=None,
-              bin_size=None, fig=None, savefig=True, legend_loc='best', watermark=None):
+              bin_size=None, fig=None, savefig=True, legend_loc='best', md5_string=None):
     """ Plot Xija model dashboard.
 
     :param prediction: model prediction
@@ -227,6 +242,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
     :param savefig: Option to automatically save the figure image (optional)
     :param legend_loc: value to be passed to the 'loc' keyword in the  matplotlib pyplot legend
            method, if None, then no legend is displayed (optional)
+    :param md5_string: MD5 hash of model file
 
     Note: prediction, tlm, and times must all have the same number of values.
 
@@ -266,8 +282,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
     else:
         fig.clf()
 
-    if watermark is not None:
-        fig.text(0.01, 0.96, 'MD5: ' + watermark, fontsize=14, color=[0.5, 0.5, 0.5], horizontalalignment='left')
+    if md5_string is not None:
+        fig.text(0.01, 0.96, 'MD5: ' + md5_string, fontsize=14, color=[0.5, 0.5, 0.5], horizontalalignment='left')
 
     # ---------------------------------------------------------------------------------------------
     # Axis 1 - Model and Telemetry vs Time
