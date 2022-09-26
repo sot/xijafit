@@ -1,8 +1,12 @@
 
+from hashlib import md5
+import json
+
 import numpy as np
 import matplotlib
 import matplotlib.patheffects as path_effects
 from xija.limits import get_limit_color, get_limit_spec
+import xija
 from Chandra.Time import DateTime
 
 if 'k' not in matplotlib.rcParams['text.color']:
@@ -115,8 +119,95 @@ def digitize_data(T_telem, nbins=50):
     return np.array([means[i] for i in inds])
 
 
-def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
-              errorplotlimits=None, yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best'):
+def get_local_model(filename):
+    """ Load parameters for a single Xija model.
+
+    :param filename: File path to local model specification file
+    :type filename: str
+    :return: Model spec as a dictionary, md5 hash of model spec
+    :rtype: tuple
+    """
+
+    with open(filename) as fid:
+        f = fid.read()
+
+    return json.loads(f), md5(f.encode('utf-8')).hexdigest()
+
+
+def run_model(msid, t0, t1, model_spec_file, init={}):
+    """ Create and run a Xija model
+
+    This function creates a Xija model object with initial parameters, if any. This function is intended to create a
+    streamlined method to creating Xija models that can take both single value data and time defined data
+    (e.g. [pitch1, pitch2, pitch3], [time1, time2, time3]), defined in the `init` dictionary.
+
+    :param msid: Primary MSID for model; in this case it can be anything as it is only being used to name the model,
+           however keeping the convention to name the model after the primary MSID being predicted reduces confusion
+    :type msid: str
+    :param t0: Start time for model prediction; this can be any format that cxotime.CxoTime accepts
+    :type t0: str or float or int
+    :param t1: End time for model prediction; this can be any format that cxotime.CxoTime accepts
+    :type t1: str or float or int
+    :param model_spec_file: Xija model parameter file
+    :type model_spec_file: str
+    :param init: Dictionary of Xija model initialization parameters, can be empty
+    :type init: dict
+    :rtype: xija.model.XijaModel
+
+    Example::
+
+        model_specs = load_model_specs()
+        init = {'1dpamzt': 35., 'dpa0': 35., 'eclipse': False, 'roll': 0, 'vid_board': True, 'pitch':155,
+                'clocking': True, 'fep_count': 5, 'ccd_count': 5, 'sim_z': 100000}
+        model = setup_model('1dpamzt', '2019:001:00:00:00', '2019:010:00:00:00', model_specs['1dpamzt'], init)
+
+    Notes:
+
+     - This does not run the model, only sets up the model to be run.
+     - Any parameters not specified in `init` will either need to be pulled from telemetry or explicitly defined \
+     outside of this function before running the model.
+
+    """
+
+    model_spec, model_spec_md5 = get_local_model(model_spec_file)
+    model = xija.ThermalModel(msid, start=t0, stop=t1, model_spec=model_spec)
+
+    for key, value in init.items():
+        if isinstance(value, dict):
+            model.comp[key].set_data(value['data'], value['times'])
+        else:
+            model.comp[key].set_data(value)
+
+    model.make()
+    model.calc()
+
+    return model, model_spec_md5
+
+
+def watermarked_dashboard(model_spec_file, t0, t1, modelname='PSMC', msid='1pdeaat', errorplotlimits=None,
+                          yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best'):
+    """
+
+    """
+
+    model_object, md5_hash = run_model(msid, t0, t1, model_spec_file, init={})
+    msiddata = model_object.get_comp(msid)
+    prediction = msiddata.mvals.astype(np.float64)
+    times = msiddata.times.astype(np.float64)
+    telem = msiddata.dvals.astype(np.float64)
+
+    model_limits = {}
+    if 'limits' in model_object.model_spec.keys():
+        if msid in model_object.model_spec['limits'].keys():
+            model_limits = model_object.model_spec['limits'][msid]
+
+    dashboard(prediction, telem, times, model_limits, modelname=modelname, msid=msid, errorplotlimits=errorplotlimits,
+              yplotlimits=yplotlimits, bin_size=bin_size, fig=fig, savefig=savefig, legend_loc=legend_loc,
+              watermark=md5_hash)
+
+
+def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', errorplotlimits=None, yplotlimits=None,
+              bin_size=None, fig=None, savefig=True, legend_loc='best', watermark=None):
     """ Plot Xija model dashboard.
 
     :param prediction: model prediction
@@ -174,6 +265,9 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat',
         fig = plt.figure(figsize=(15, 8))
     else:
         fig.clf()
+
+    if watermark is not None:
+        fig.text(0.01, 0.96, 'MD5: ' + watermark, fontsize=14, color=[0.5, 0.5, 0.5], horizontalalignment='left')
 
     # ---------------------------------------------------------------------------------------------
     # Axis 1 - Model and Telemetry vs Time
