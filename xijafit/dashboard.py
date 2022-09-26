@@ -159,13 +159,11 @@ def run_model(msid, t0, t1, model_spec_file, init={}):
         model_specs = load_model_specs()
         init = {'1dpamzt': 35., 'dpa0': 35., 'eclipse': False, 'roll': 0, 'vid_board': True, 'pitch':155,
                 'clocking': True, 'fep_count': 5, 'ccd_count': 5, 'sim_z': 100000}
-        model = setup_model('1dpamzt', '2019:001:00:00:00', '2019:010:00:00:00', model_specs['1dpamzt'], init)
+        model = run_model('1dpamzt', '2019:001:00:00:00', '2019:010:00:00:00', 'dpa_spec.json', init)
 
     Notes:
 
-     - This does not run the model, only sets up the model to be run.
-     - Any parameters not specified in `init` will either need to be pulled from telemetry or explicitly defined \
-     outside of this function before running the model.
+     - Any parameters not specified in `init` will need to be pulled from telemetry
 
     """
 
