@@ -184,13 +184,14 @@ def run_model(msid, t0, t1, model_spec_file, init={}):
     return model, model_spec_md5
 
 
-def watermarked_dashboard(model_spec_file, t0, t1, modelname='PSMC', msid='1pdeaat', errorplotlimits=None,
+def watermarked_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pdeaat', errorplotlimits=None,
                           yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best'):
     """ Generate a watermarked Xija model dashboard
 
     :param model_spec_file: File location for Xija model definition
     :param t0: Start Time (seconds or HOSC date string)
     :param t1: Stop Time (seconds or HOSC date string)
+    :param init: Dictionary of Xija model initialization parameters, can be empty (e.g. {'1dpamzt': 35., 'dpa0': 35.})
     :param modelname: Name of model (e.g. "ACA")
     :param msid: msid name (e.g. "aacccdpt")
     :param errorplotlimits: list or tuple of min and max x axis plot boundaries for both righthand
@@ -203,9 +204,10 @@ def watermarked_dashboard(model_spec_file, t0, t1, modelname='PSMC', msid='1pdea
     :param savefig: Option to automatically save the figure image (optional)
     :param legend_loc: value to be passed to the 'loc' keyword in the  matplotlib pyplot legend
            method, if None, then no legend is displayed (optional)
+
     """
 
-    model_object, md5_hash = run_model(msid, t0, t1, model_spec_file, init={})
+    model_object, md5_hash = run_model(msid, t0, t1, model_spec_file, init=init)
     msiddata = model_object.get_comp(msid)
     prediction = msiddata.mvals.astype(np.float64)
     times = msiddata.times.astype(np.float64)
