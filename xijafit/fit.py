@@ -10,6 +10,7 @@ import re
 import logging
 import io
 import os
+import sys
 
 try:
     from ipywidgets import widgets
@@ -117,14 +118,20 @@ class XijaFit(object):
         self.sherpa_logger.setLevel(logging.INFO)
 
         self.log_capture_string = io.StringIO()
-        ch = logging.StreamHandler(self.log_capture_string)
+        if quiet == True:
+            ch = logging.StreamHandler(self.log_capture_string)
+        else:
+            ch = logging.StreamHandler(sys.stdout)
         ch.setLevel(logging.INFO)
         formatter = logging.Formatter('[%(levelname)s] (%(processName)-10s) %(message)s')
         ch.setFormatter(formatter)
         self.fit_logger.addHandler(ch)
 
         self.sherpa_log_capture_string = io.StringIO()
-        sch = logging.StreamHandler(self.sherpa_log_capture_string)
+        if quiet == True:
+            sch = logging.StreamHandler(self.sherpa_log_capture_string)
+        else:
+            sch = logging.StreamHandler(sys.stdout)
         sch.setLevel(logging.INFO)
         sformatter = logging.Formatter('[%(levelname)s] (%(processName)-10s) %(message)s')
         sch.setFormatter(sformatter)
@@ -363,7 +370,7 @@ class XijaFit(object):
             elif re.match(p2, par.full_name):
                 pass
             else:
-                par['frozen'] = False
+                par['frozen'] = Falseballbal
 
     def thaw_param(self, param):
         """Thaw specific parameter.
