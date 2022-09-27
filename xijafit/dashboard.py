@@ -182,7 +182,7 @@ def run_model(msid, t0, t1, model_spec_file, init={}):
     return model, model_spec_md5
 
 
-def watermarked_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pdeaat', errorplotlimits=None,
+def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pdeaat', errorplotlimits=None,
                           yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best'):
     """ Generate a watermarked Xija model dashboard
 
