@@ -183,7 +183,7 @@ def run_model(msid, t0, t1, model_spec_file, init={}):
 
 
 def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pdeaat', errorplotlimits=None,
-                          yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best'):
+                   yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best', filter_fcn=None):
     """ Generate a watermarked Xija model dashboard
 
     :param model_spec_file: File location for Xija model definition
@@ -202,14 +202,32 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
     :param savefig: Option to automatically save the figure image (optional)
     :param legend_loc: value to be passed to the 'loc' keyword in the  matplotlib pyplot legend
            method, if None, then no legend is displayed (optional)
+    :param filter_fcn: User defined function that takes a Xija model object and returns a boolean filtering array
+
+    Note:
+    The filter_fcn() function must return a boolean numpy array with a length that matches the model and telemetry data
+    stored in the model object created by the run_model() function. This boolean array defines which elements to keep
+    with a True value, and which elements to ignore with the False value.
+
+    Example filter_fcn:
+        def keep_highs(model):
+            msiddata = model.get_comp('pm2thv1t')
+            keep = msiddata.dvals > 90 # Celsius
+            print(f'{sum(keep)} values kept out of {len(keep)}')
+            return keep
 
     """
 
     model_object, md5_hash = run_model(msid, t0, t1, model_spec_file, init=init)
     msiddata = model_object.get_comp(msid)
-    prediction = msiddata.mvals.astype(np.float64)
-    times = msiddata.times.astype(np.float64)
-    telem = msiddata.dvals.astype(np.float64)
+
+    keep = np.zeros_like(msiddata.times) < 1
+    if callable(filter_fcn):
+        keep = filter_fcn(model_object)
+
+    prediction = msiddata.mvals.astype(np.float64)[keep]
+    times = msiddata.times.astype(np.float64)[keep]
+    telem = msiddata.dvals.astype(np.float64)[keep]
 
     model_limits = {}
     if 'limits' in model_object.model_spec.keys():
