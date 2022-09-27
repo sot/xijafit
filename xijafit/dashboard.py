@@ -238,6 +238,8 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
               yplotlimits=yplotlimits, bin_size=bin_size, fig=fig, savefig=savefig, legend_loc=legend_loc,
               md5_string=md5_hash)
 
+    return model_object
+
 
 def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', errorplotlimits=None, yplotlimits=None,
               bin_size=None, fig=None, savefig=True, legend_loc='best', md5_string=None):
