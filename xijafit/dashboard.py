@@ -1,6 +1,7 @@
 
 from hashlib import md5
 import json
+from urllib.request import urlopen
 
 import numpy as np
 import matplotlib
@@ -16,6 +17,19 @@ matplotlib.rcParams['xtick.major.pad'] = 5
 matplotlib.rcParams['ytick.major.pad'] = 5
 
 plt = matplotlib.pyplot
+
+
+def c_to_f(temp):
+    """ Convert Celsius to Fahrenheit.
+    :param temp: Temperature in Celsius
+    :type temp: int or float or tuple or list or np.ndarray
+    :return: Temperature in Fahrenheit
+    :rtype: int or float or list or np.ndarray
+    """
+    if type(temp) is list or type(temp) is tuple:
+        return [c * 1.8 + 32 for c in temp]
+    else:
+        return temp * 1.8 + 32.0
 
 
 def getQuantPlotPoints(quantstats, quantile):
@@ -122,14 +136,19 @@ def digitize_data(T_telem, nbins=50):
 def get_local_model(filename):
     """ Load parameters for a single Xija model.
 
-    :param filename: File path to local model specification file
+    :param filename: File path or url to local model specification file
     :type filename: str
     :return: Model spec as a dictionary, md5 hash of model spec
     :rtype: tuple
     """
 
-    with open(filename) as fid:
-        f = fid.read()
+    if 'https://' in filename:
+        with urlopen(filename) as url:
+            response = url.read()
+            f = response.decode('utf-8')
+    else:
+        with open(filename) as fid:
+            f = fid.read()
 
     return json.loads(f), md5(f.encode('utf-8')).hexdigest()
 
@@ -148,7 +167,7 @@ def run_model(msid, t0, t1, model_spec_file, init={}):
     :type t0: str or float or int
     :param t1: End time for model prediction; this can be any format that cxotime.CxoTime accepts
     :type t1: str or float or int
-    :param model_spec_file: Xija model parameter file
+    :param model_spec_file: Xija model parameter filename
     :type model_spec_file: str
     :param init: Dictionary of Xija model initialization parameters, can be empty
     :type init: dict
@@ -183,7 +202,8 @@ def run_model(msid, t0, t1, model_spec_file, init={}):
 
 
 def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pdeaat', errorplotlimits=None,
-                   yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best', filter_fcn=None):
+                   yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best', filter_fcn=None,
+                   units='C'):
     """ Generate a watermarked Xija model dashboard
 
     :param model_spec_file: File location for Xija model definition
@@ -203,6 +223,7 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
     :param legend_loc: value to be passed to the 'loc' keyword in the  matplotlib pyplot legend
            method, if None, then no legend is displayed (optional)
     :param filter_fcn: User defined function that takes a Xija model object and returns a boolean filtering array
+    :param units: String indicating units, used to convert to Fahrenheit if "f" is observed somewhere in the string
 
     Note:
     The filter_fcn() function must return a boolean numpy array with a length that matches the model and telemetry data
@@ -228,6 +249,10 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
     prediction = msiddata.mvals.astype(np.float64)[keep]
     times = msiddata.times.astype(np.float64)[keep]
     telem = msiddata.dvals.astype(np.float64)[keep]
+
+    if 'f' in units.lower():
+        prediction = c_to_f(prediction)
+        telem = c_to_f(telem)
 
     model_limits = {}
     if 'limits' in model_object.model_spec.keys():
