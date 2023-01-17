@@ -1,4 +1,5 @@
 from .fit import *
+from .dashboard import *
 
 __version__ = '0.7'
 
