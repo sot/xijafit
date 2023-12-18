@@ -8,7 +8,7 @@ import matplotlib
 import matplotlib.patheffects as path_effects
 from xija.limits import get_limit_color, get_limit_spec
 import xija
-from Chandra.Time import DateTime
+from cxotime import CxoTime
 
 if 'k' not in matplotlib.rcParams['text.color']:
     matplotlib.rcParams['axes.facecolor'] = [.1,.15,.2]
@@ -203,7 +203,7 @@ def run_model(msid, t0, t1, model_spec_file, init={}):
 
 def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pdeaat', errorplotlimits=None,
                    yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best', filter_fcn=None,
-                   units='C'):
+                   units='C', remove_bad_times=True):
     """ Generate a watermarked Xija model dashboard
 
     :param model_spec_file: File location for Xija model definition
@@ -224,6 +224,8 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
            method, if None, then no legend is displayed (optional)
     :param filter_fcn: User defined function that takes a Xija model object and returns a boolean filtering array
     :param units: String indicating units, used to convert to Fahrenheit if "f" is observed somewhere in the string
+    :param remove_bad_times: Boolean indicating whether to remove bad times data from the data
+    :return: Xija model object
 
     Note:
     The filter_fcn() function must return a boolean numpy array with a length that matches the model and telemetry data
@@ -245,6 +247,10 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
     keep = np.zeros_like(msiddata.times) < 1
     if callable(filter_fcn):
         keep = filter_fcn(model_object)
+
+    if remove_bad_times:
+        for t1, t2 in model_object.bad_times:
+            keep = keep & ((msiddata.times < CxoTime(t1).secs) | (msiddata.times > CxoTime(t2).secs))
 
     prediction = msiddata.mvals.astype(np.float64)[keep]
     times = msiddata.times.astype(np.float64)[keep]
@@ -315,11 +321,11 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
     else:
         units = "C"
 
-    startsec = DateTime(times[0]).secs
-    stopsec = DateTime(times[-1]).secs
+    startsec = CxoTime(times[0]).secs
+    stopsec = CxoTime(times[-1]).secs
 
     xtick = np.linspace(startsec, stopsec, 10)
-    xlab = [lab[:8] for lab in DateTime(xtick).date]
+    xlab = [lab[:8] for lab in CxoTime(xtick).date]
 
     if not fig:
         # fig = plt.figure(figsize=(16, 10), facecolor=[1, 1, 1])
