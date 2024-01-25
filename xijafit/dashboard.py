@@ -9,6 +9,7 @@ import matplotlib.patheffects as path_effects
 from xija.limits import get_limit_color, get_limit_spec
 import xija
 from cxotime import CxoTime
+from cheta import fetch
 
 if 'k' not in matplotlib.rcParams['text.color']:
     matplotlib.rcParams['axes.facecolor'] = [.1,.15,.2]
@@ -201,9 +202,24 @@ def run_model(msid, t0, t1, model_spec_file, init={}):
     return model, model_spec_md5
 
 
+def find_anomaly_ind(model_object):
+    """ Find indices of data taken during NSM or SM instances
+
+    :param model_object: Xija model object
+    :type model_object: xija.model.XijaModel
+    :return: Indices of data taken during NSM or SM instances
+    :rtype: np.ndarray
+    """
+    pcad_mode = fetch.Msid('aopcadmd', model_object.times[0], model_object.times[-1], stat='5min')
+    anomaly_ind = (pcad_mode.vals == 'NSUN') | (pcad_mode.vals == 'STBY')
+
+    # Poor man's interpolation for boolean array
+    return np.interp(model_object.times, pcad_mode.times, anomaly_ind) >= 0.5
+
+
 def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pdeaat', errorplotlimits=None,
                    yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best', filter_fcn=None,
-                   units='C', remove_bad_times=True):
+                   units='C', remove_bad_times=True, highlight_anomaly_data=True):
     """ Generate a watermarked Xija model dashboard
 
     :param model_spec_file: File location for Xija model definition
@@ -225,6 +241,7 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
     :param filter_fcn: User defined function that takes a Xija model object and returns a boolean filtering array
     :param units: String indicating units, used to convert to Fahrenheit if "f" is observed somewhere in the string
     :param remove_bad_times: Boolean indicating whether to remove bad times data from the data
+    :param highlight_anomaly_data: Boolean indicating whether to highlight data taken during NSM or SM instances
     :return: Xija model object
 
     Note:
@@ -252,6 +269,11 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
         for t1, t2 in model_object.bad_times:
             keep = keep & ((msiddata.times < CxoTime(t1).secs) | (msiddata.times > CxoTime(t2).secs))
 
+    if highlight_anomaly_data:
+        anomaly_ind = find_anomaly_ind(model_object)[keep]
+    else:
+        anomaly_ind = None
+
     prediction = msiddata.mvals.astype(np.float64)[keep]
     times = msiddata.times.astype(np.float64)[keep]
     telem = msiddata.dvals.astype(np.float64)[keep]
@@ -267,13 +289,13 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
 
     dashboard(prediction, telem, times, model_limits, modelname=modelname, msid=msid, errorplotlimits=errorplotlimits,
               yplotlimits=yplotlimits, bin_size=bin_size, fig=fig, savefig=savefig, legend_loc=legend_loc,
-              md5_string=md5_hash)
+              md5_string=md5_hash, anomaly_ind=anomaly_ind)
 
     return model_object
 
 
 def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', errorplotlimits=None, yplotlimits=None,
-              bin_size=None, fig=None, savefig=True, legend_loc='best', md5_string=None):
+              bin_size=None, fig=None, savefig=True, legend_loc='best', md5_string=None, anomaly_ind=None):
     """ Plot Xija model dashboard.
 
     :param prediction: model prediction
@@ -294,6 +316,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
     :param legend_loc: value to be passed to the 'loc' keyword in the  matplotlib pyplot legend
            method, if None, then no legend is displayed (optional)
     :param md5_string: MD5 hash of model file
+    :param anomaly_ind: Indices of data taken during NSM or SM instances (optional)
 
     Note: prediction, tlm, and times must all have the same number of values.
 
@@ -308,11 +331,17 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
 
     # In this case the data is not discretized to a limited number of count values, or has too
     # many possible values to work with calcquantstats(), such as with tlm_fep1_mong.
-    if len(np.sort(list(set(tlm)))) > 1000:
-        quantized_tlm = digitize_data(tlm)
-        quantstats = calcquantstats(quantized_tlm, error, bin_size=bin_size)
+
+    if anomaly_ind is not None:
+        ind = ~anomaly_ind
     else:
-        quantstats = calcquantstats(tlm, error, bin_size=bin_size)
+        ind = np.zeros_like(times) < 1
+
+    if len(np.sort(list(set(tlm)))) > 1000:
+        quantized_tlm = digitize_data(tlm[ind])
+        quantstats = calcquantstats(quantized_tlm, error[ind], bin_size=bin_size)
+    else:
+        quantstats = calcquantstats(tlm[ind], error[ind], bin_size=bin_size)
 
     if 'units' in limits:
         units = limits['units']
@@ -346,6 +375,12 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
     ax1 = fig.add_axes([0.1, 0.38, 0.44, 0.50], frameon=True)
     pred_line = ax1.plot(times, prediction, color='#d92121', linewidth=1, label='Model')
     telem_line = ax1.plot(times, tlm, color='#386cb0', linewidth=1.5, label='Telemetry')
+
+    if anomaly_ind is not None:
+        # ax1.plot(times[anomaly_ind], tlm[anomaly_ind], color='#555555', alpha=1, linewidth=1.5, label='Anomaly')
+        anom_line = ax1.plot(times[anomaly_ind], tlm[anomaly_ind], 'o', color='#aaaaaa', alpha=1, markersize=2,
+                             markeredgecolor='#aaaaaa', label='Anomaly')
+
     ax1.set_title('%s Temperature (%s)' % (modelname.replace('_', ' '), msid.upper()),
                   fontsize=18, y=1.00)
     ax1.set_ylabel('Temperature %s' % units, fontsize=18)
@@ -436,6 +471,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
 
     if legend_loc is not None:
         lns = pred_line + telem_line
+        if anomaly_ind is not None:
+            lns = lns + anom_line
         labs = [l.get_label() for l in lns]
         plt.legend(lns, labs, loc=legend_loc)
     # ---------------------------------------------------------------------------------------------
@@ -446,6 +483,12 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
 
     ax2 = fig.add_axes([0.1, 0.1, 0.44, 0.2], frameon=True)
     ax2.plot(times, error, color='#386cb0', label='Telemetry')
+
+    if anomaly_ind is not None:
+        # ax2.plot(times[anomaly_ind], error[anomaly_ind], color='#555555', alpha=1, linewidth=1.5, label='Anomaly')
+        ax2.plot(times[anomaly_ind], error[anomaly_ind], 'o', color='#aaaaaa', alpha=1, markersize=2,
+                 markeredgecolor='#aaaaaa')
+
     if errorplotlimits:
         ax2.set_ylim(errorplotlimits)
 
@@ -476,8 +519,13 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
     noise = np.random.uniform(-band, band, len(tlm))
 
     ax3 = fig.add_axes([0.62, 0.38, 0.36, 0.50], frameon=True)
-    ax3.plot(error, tlm + noise, 'o', color='#386cb0', alpha=1, markersize=2,
-             markeredgecolor='#386cb0')
+    ax3.plot(error, tlm + noise, 'o', color='#386cb0', alpha=1, markersize=2, markeredgecolor='#386cb0')
+
+    if anomaly_ind is not None:
+        # ax3.plot(error[anomaly_ind], tlm[anomaly_ind], color='#555555', alpha=1, linewidth=1.5, label='Anomaly')
+        ax3.plot(error[anomaly_ind], tlm[anomaly_ind] + + noise[anomaly_ind], 'o', color='#aaaaaa', alpha=1, markersize=2,
+                 markeredgecolor='#aaaaaa')
+
     ax3.set_title('%s Telemetry \n vs. Model Error'
                   % modelname.replace('_', ' '), fontsize=18, y=1.00)
     ax3.set_ylabel('Temperature %s' % units, fontsize=18)
