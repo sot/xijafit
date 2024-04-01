@@ -287,15 +287,25 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
         if msid in model_object.model_spec['limits'].keys():
             model_limits = model_object.model_spec['limits'][msid]
 
+    highlight_ind = None
+    highlight_label = None
+    if '2ceahvpt' in msid.lower():
+        print("Highlighting when HRC is powered on")
+        msiddata = model_object.get_comp('215pcast_off')
+        highlight_ind = msiddata.dvals == 1
+        highlight_label = 'HRC Powered ON'
+
     dashboard(prediction, telem, times, model_limits, modelname=modelname, msid=msid, errorplotlimits=errorplotlimits,
               yplotlimits=yplotlimits, bin_size=bin_size, fig=fig, savefig=savefig, legend_loc=legend_loc,
-              md5_string=md5_hash, anomaly_ind=anomaly_ind)
+              md5_string=md5_hash, anomaly_ind=anomaly_ind, highlight_ind=highlight_ind,
+              highlight_label=highlight_label)
 
     return model_object
 
 
 def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', errorplotlimits=None, yplotlimits=None,
-              bin_size=None, fig=None, savefig=True, legend_loc='best', md5_string=None, anomaly_ind=None):
+              bin_size=None, fig=None, savefig=True, legend_loc='best', md5_string=None, anomaly_ind=None,
+              highlight_ind=None, highlight_label=None):
     """ Plot Xija model dashboard.
 
     :param prediction: model prediction
@@ -328,6 +338,9 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
 
     error = tlm - prediction
     stats = calcquantiles(error)
+
+    if highlight_ind is not None:
+        stats_highlight = calcquantiles(error[highlight_ind])
 
     # In this case the data is not discretized to a limited number of count values, or has too
     # many possible values to work with calcquantstats(), such as with tlm_fep1_mong.
@@ -380,6 +393,11 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
         # ax1.plot(times[anomaly_ind], tlm[anomaly_ind], color='#555555', alpha=1, linewidth=1.5, label='Anomaly')
         anom_line = ax1.plot(times[anomaly_ind], tlm[anomaly_ind], 'o', color='#aaaaaa', alpha=1, markersize=2,
                              markeredgecolor='#aaaaaa', label='Anomaly')
+
+    if highlight_ind is not None:
+        print(f'plotting hrc==on: {sum(highlight_ind)} points, label: {highlight_label}')
+        highlight_line = ax1.plot(times[highlight_ind], tlm[highlight_ind], 'o', color='#109618', alpha=1, markersize=2,
+                             markeredgecolor='#109618', label=highlight_label)
 
     ax1.set_title('%s Temperature (%s)' % (modelname.replace('_', ' '), msid.upper()),
                   fontsize=18, y=1.00)
@@ -472,7 +490,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
     if legend_loc is not None:
         lns = pred_line + telem_line
         if anomaly_ind is not None:
-            lns = lns + anom_line
+            lns = lns + anom_line + highlight_line
         labs = [l.get_label() for l in lns]
         plt.legend(lns, labs, loc=legend_loc)
     # ---------------------------------------------------------------------------------------------
@@ -488,6 +506,10 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
         # ax2.plot(times[anomaly_ind], error[anomaly_ind], color='#555555', alpha=1, linewidth=1.5, label='Anomaly')
         ax2.plot(times[anomaly_ind], error[anomaly_ind], 'o', color='#aaaaaa', alpha=1, markersize=2,
                  markeredgecolor='#aaaaaa')
+
+    if highlight_ind is not None:
+        highlight_line = ax2.plot(times[highlight_ind], error[highlight_ind], 'o', color='#109618', alpha=1, markersize=2,
+                             markeredgecolor='#109618')
 
     if errorplotlimits:
         ax2.set_ylim(errorplotlimits)
@@ -523,8 +545,12 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
 
     if anomaly_ind is not None:
         # ax3.plot(error[anomaly_ind], tlm[anomaly_ind], color='#555555', alpha=1, linewidth=1.5, label='Anomaly')
-        ax3.plot(error[anomaly_ind], tlm[anomaly_ind] + + noise[anomaly_ind], 'o', color='#aaaaaa', alpha=1, markersize=2,
+        ax3.plot(error[anomaly_ind], tlm[anomaly_ind] + noise[anomaly_ind], 'o', color='#aaaaaa', alpha=1, markersize=2,
                  markeredgecolor='#aaaaaa')
+
+    if highlight_ind is not None:
+        highlight_line = ax3.plot(error[highlight_ind], tlm[highlight_ind] + noise[highlight_ind], 'o', color='#109618', alpha=1, markersize=2,
+                             markeredgecolor='#109618')
 
     ax3.set_title('%s Telemetry \n vs. Model Error'
                   % modelname.replace('_', ' '), fontsize=18, y=1.00)
@@ -578,6 +604,10 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
 
     ax4 = fig.add_axes([0.62, 0.1, 0.36, 0.2], frameon=True)
     n, bins, patches = ax4.hist(error, 40, range=errorplotlimits, facecolor='#386cb0')
+
+    if highlight_ind is not None:
+        _ = ax4.hist(error[highlight_ind], 40, range=errorplotlimits, facecolor='#109618', edgecolor='white', alpha=1.0)
+
     ax4.set_title('Error Distribution', fontsize=18, y=1.0)
     ytick4 = ax4.get_yticks()
 
