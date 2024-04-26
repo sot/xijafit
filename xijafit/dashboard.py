@@ -219,7 +219,7 @@ def find_anomaly_ind(model_object):
 
 def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pdeaat', errorplotlimits=None,
                    yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best', filter_fcn=None,
-                   units='C', remove_bad_times=True, highlight_anomaly_data=True):
+                   units='C', remove_bad_times=True, highlight_anomaly_data=True, hrc_on_only=False):
     """ Generate a watermarked Xija model dashboard
 
     :param model_spec_file: File location for Xija model definition
@@ -289,7 +289,7 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
 
     highlight_ind = None
     highlight_label = None
-    if '2ceahvpt' in msid.lower():
+    if (hrc_on_only is False) and ('2ceahvpt' in msid.lower()):
         print("Highlighting when HRC is powered on")
         msiddata = model_object.get_comp('215pcast_off')
         highlight_ind = msiddata.dvals == 1
@@ -339,7 +339,9 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
     error = tlm - prediction
     stats = calcquantiles(error)
 
-    if highlight_ind is not None:
+    highlight_line = []
+
+    if (highlight_ind is not None) and (sum(highlight_ind) > 0):
         stats_highlight = calcquantiles(error[highlight_ind])
 
     # In this case the data is not discretized to a limited number of count values, or has too
