@@ -1,6 +1,5 @@
 from .fit import *
 from .dashboard import *
-from .mups_filtering import *
 
 __version__ = '1.0'
 
