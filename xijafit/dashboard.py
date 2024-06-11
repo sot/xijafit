@@ -219,7 +219,7 @@ def find_anomaly_ind(model_object):
 
 def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pdeaat', errorplotlimits=None,
                    yplotlimits=None, bin_size=None, fig=None, savefig=True, legend_loc='best', filter_fcn=None,
-                   units='C', remove_bad_times=True, highlight_anomaly_data=True, hrc_on_only=False):
+                   units='C', remove_bad_times=True, highlight_anomaly_data=True, hrc_on_only=False, limit_type='high'):
     """ Generate a watermarked Xija model dashboard
 
     :param model_spec_file: File location for Xija model definition
@@ -242,6 +242,9 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
     :param units: String indicating units, used to convert to Fahrenheit if "f" is observed somewhere in the string
     :param remove_bad_times: Boolean indicating whether to remove bad times data from the data
     :param highlight_anomaly_data: Boolean indicating whether to highlight data taken during NSM or SM instances
+    :param hrc_on_only: Boolean indicating whether to highlight data taken when HRC is powered on
+    :param limit_type: Type of limit to plot (high or low)
+
     :return: Xija model object
 
     Note:
@@ -298,14 +301,14 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
     dashboard(prediction, telem, times, model_limits, modelname=modelname, msid=msid, errorplotlimits=errorplotlimits,
               yplotlimits=yplotlimits, bin_size=bin_size, fig=fig, savefig=savefig, legend_loc=legend_loc,
               md5_string=md5_hash, anomaly_ind=anomaly_ind, highlight_ind=highlight_ind,
-              highlight_label=highlight_label)
+              highlight_label=highlight_label, limit_type=limit_type)
 
     return model_object
 
 
 def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', errorplotlimits=None, yplotlimits=None,
               bin_size=None, fig=None, savefig=True, legend_loc='best', md5_string=None, anomaly_ind=None,
-              highlight_ind=None, highlight_label=None):
+              highlight_ind=None, highlight_label=None, limit_type='high'):
     """ Plot Xija model dashboard.
 
     :param prediction: model prediction
@@ -327,6 +330,9 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
            method, if None, then no legend is displayed (optional)
     :param md5_string: MD5 hash of model file
     :param anomaly_ind: Indices of data taken during NSM or SM instances (optional)
+    :param highlight_ind: Indices of data to highlight (optional)
+    :param highlight_label: Label for highlighted data (optional)
+    :param limit_type: Type of limit to plot (high or low)
 
     Note: prediction, tlm, and times must all have the same number of values.
 
@@ -494,7 +500,7 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
         if anomaly_ind is not None:
             lns = lns + anom_line + highlight_line
         labs = [l.get_label() for l in lns]
-        plt.legend(lns, labs, loc=legend_loc)
+        plt.legend(lns, labs, loc=legend_loc, fontsize='small')
     # ---------------------------------------------------------------------------------------------
     # Axis 2 - Model Error vs Time
     #
@@ -596,6 +602,13 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
     xlim3 = ax3.get_xlim()
     ylim1 = ax1.get_ylim() # Match axis 1 y scale
 
+    if 'high' in limit_type.lower():
+        over_predicting_color = 'green'
+        under_predicting_color = 'red'
+    else:
+        over_predicting_color = 'red'
+        under_predicting_color = 'green'
+
     ax3.annotate('Over Predicting',
                  xy=(0.33, 0.93),
                  xycoords='axes fraction',
@@ -603,7 +616,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
                  textcoords='offset points',
                  ha='right',
                  va='bottom',
-                 fontsize=14)
+                 fontsize=14,
+                 color=over_predicting_color)
 
     ax3.annotate('Under Predicting',
                  xy=(0.67, 0.93),
@@ -612,7 +626,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
                  textcoords='offset points',
                  ha='left',
                  va='bottom',
-                 fontsize=14)
+                 fontsize=14,
+                 color=under_predicting_color)
 
     # ---------------------------------------------------------------------------------------------
     # Axis 4 - Error Distribution Histogram
