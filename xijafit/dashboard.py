@@ -295,7 +295,7 @@ def make_dashboard(model_spec_file, t0, t1, init={}, modelname='PSMC', msid='1pd
     if (hrc_on_only is False) and ('2ceahvpt' in msid.lower()):
         print("Highlighting when HRC is powered on")
         msiddata = model_object.get_comp('215pcast_off')
-        highlight_ind = msiddata.dvals == 1
+        highlight_ind = msiddata.dvals[keep] == 1
         highlight_label = 'HRC Powered ON'
 
     dashboard(prediction, telem, times, model_limits, modelname=modelname, msid=msid, errorplotlimits=errorplotlimits,
@@ -347,8 +347,8 @@ def dashboard(prediction, tlm, times, limits, modelname='PSMC', msid='1pdeaat', 
 
     highlight_line = []
 
-    if (highlight_ind is not None) and (sum(highlight_ind) > 0):
-        stats_highlight = calcquantiles(error[highlight_ind])
+    # if (highlight_ind is not None) and (sum(highlight_ind) > 0):
+        # stats_highlight = calcquantiles(error[highlight_ind])
 
     # In this case the data is not discretized to a limited number of count values, or has too
     # many possible values to work with calcquantstats(), such as with tlm_fep1_mong.

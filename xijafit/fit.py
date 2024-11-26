@@ -370,7 +370,7 @@ class XijaFit(object):
             elif re.match(p2, par.full_name):
                 pass
             else:
-                par['frozen'] = Falseballbal
+                par['frozen'] = False
 
     def thaw_param(self, param):
         """Thaw specific parameter.
